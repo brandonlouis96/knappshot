@@ -5559,6 +5559,8 @@
                 // Load gallery from cloud
                 state.gallery = await loadGalleryFromCloud();
                 renderGallery();
+                // Re-render collections now that gallery is loaded (to update counts)
+                renderCollections();
 
                 showSyncIndicator('Synced!', false);
 
@@ -5573,7 +5575,9 @@
                 state.products = Storage.get('products', []);
                 state.prompts = Storage.get('prompts', []);
                 state.reviewItems = Storage.get('reviewItems', []);
+                state.collections = Storage.get('collections', []);
                 renderGallery();
+                renderCollections();
                 renderProducts();
                 renderPrompts();
                 updateReviewUI();
