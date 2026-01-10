@@ -4990,6 +4990,15 @@
                     console.error('Storage error:', e);
                     return false;
                 }
+            },
+            // Save only when NOT signed in (cloud is source of truth when signed in)
+            setIfOffline(key, value) {
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    // User is signed in, don't save to localStorage
+                    // Cloud sync will handle persistence
+                    return true;
+                }
+                return this.set(key, value);
             }
         };
 
@@ -6619,7 +6628,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function saveReviewItems() {
-            Storage.set('reviewItems', state.reviewItems);
+            Storage.setIfOffline('reviewItems', state.reviewItems);
         }
 
         function updateReviewUI() {
@@ -6724,7 +6733,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             } else {
                 state.gallery.unshift(galleryItem);
                 if (state.gallery.length > 50) state.gallery.pop();
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
             }
 
             state.reviewItems = state.reviewItems.filter(i => i.id !== id);
@@ -6965,7 +6974,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 // Save to local storage
                 state.gallery.unshift(item);
                 if (state.gallery.length > 50) state.gallery.pop();
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
                 showStatus('Saved to gallery!', 'success');
             }
         }
@@ -7103,7 +7112,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 };
 
                 state.collections.push(newCollection);
-                Storage.set('collections', state.collections);
+                Storage.setIfOffline('collections', state.collections);
                 scheduleCloudSync();
                 renderCollections();
                 closeCollectionModal();
@@ -7114,7 +7123,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 const col = state.collections.find(c => c.id === editingCollectionId);
                 if (col) {
                     col.name = name;
-                    Storage.set('collections', state.collections);
+                    Storage.setIfOffline('collections', state.collections);
                     scheduleCloudSync();
                     renderCollections();
                 }
@@ -7130,7 +7139,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         affectedItems.push(item);
                     }
                 });
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
 
                 // Sync collectionId removal to cloud for each affected image
                 affectedItems.forEach(item => {
@@ -7138,7 +7147,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 });
 
                 state.collections = state.collections.filter(c => c.id !== editingCollectionId);
-                Storage.set('collections', state.collections);
+                Storage.setIfOffline('collections', state.collections);
 
                 if (state.activeCollection === editingCollectionId) {
                     state.activeCollection = null;
@@ -7246,7 +7255,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     showStatus('Removed from collection', 'success');
                 }
 
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
                 scheduleCloudSync();
                 // Sync collectionId to cloud for this specific image
                 updateImageInCloud(item.id, { collectionId: item.collectionId || null });
@@ -7287,7 +7296,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
             }
 
-            Storage.set('gallery', state.gallery);
+            Storage.setIfOffline('gallery', state.gallery);
             scheduleCloudSync();
 
             // Sync collectionId to cloud for each moved item
@@ -7463,7 +7472,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (currentUser) {
                 await updateImageInCloud(item.id, { favorite: item.favorite });
             } else {
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
             }
             renderGallery();
         }
@@ -7489,7 +7498,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 await deleteImageFromCloud(item.id);
                 showSyncIndicator('Deleted!', false);
             } else {
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
             }
 
             // Re-render with current filter
@@ -7536,7 +7545,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             // Remove selected items from gallery
             state.gallery = state.gallery.filter(item => !selectedGalleryIds.has(item.id));
             if (!currentUser) {
-                Storage.set('gallery', state.gallery);
+                Storage.setIfOffline('gallery', state.gallery);
             }
 
             // Clear selection
@@ -7659,7 +7668,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (!state.prompts.find(p => p.text === text)) {
                 state.prompts.unshift({ id: Date.now(), text, date: new Date().toISOString() });
                 if (state.prompts.length > 30) state.prompts.pop();
-                Storage.set('prompts', state.prompts);
+                Storage.setIfOffline('prompts', state.prompts);
             }
         }
 
@@ -7691,7 +7700,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function deletePrompt(index) {
             state.prompts.splice(index, 1);
-            Storage.set('prompts', state.prompts);
+            Storage.setIfOffline('prompts', state.prompts);
             renderPrompts();
         }
 
@@ -8664,7 +8673,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 });
             }
 
-            const saved = Storage.set('products', state.products);
+            const saved = Storage.setIfOffline('products', state.products);
             if (!saved) {
                 alert('Warning: Image too large to save locally. It will be saved to your cloud account if you\'re signed in.');
             }
@@ -8689,7 +8698,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             state.products = state.products.filter(p => p.id !== id);
             if (state.activeProductId === id) {
                 state.activeProductId = null;
-                Storage.set('activeProductId', null);
+                Storage.setIfOffline('activeProductId', null);
             }
 
             // Sync to cloud if signed in
@@ -8697,14 +8706,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 saveProductsToCloud();
             }
 
-            Storage.set('products', state.products);
+            Storage.setIfOffline('products', state.products);
             renderProducts();
             updateProductSelect();
         }
 
         function setActiveProduct(id) {
             state.activeProductId = id;
-            Storage.set('activeProductId', id);
+            Storage.setIfOffline('activeProductId', id);
             // Sync to cloud if signed in
             if (currentUser) {
                 saveSettingsToCloud({ activeProductId: id });
@@ -9407,7 +9416,11 @@ A bulleted list of what to explicitly AVOID:
         // Prompt Generator event listeners
         $('promptgenProductSelect')?.addEventListener('change', (e) => {
             state.activeProductId = e.target.value ? parseInt(e.target.value) : null;
-            Storage.set('activeProductId', state.activeProductId);
+            Storage.setIfOffline('activeProductId', state.activeProductId);
+            // Sync to cloud if signed in
+            if (currentUser) {
+                saveSettingsToCloud({ activeProductId: state.activeProductId });
+            }
             updateProductPreview();
             renderProducts();
         });
