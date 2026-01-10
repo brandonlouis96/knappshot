@@ -5026,7 +5026,10 @@
             reviewSelectMode: false,
             // Collections system
             collections: Storage.get('collections', []),
-            activeCollection: null
+            activeCollection: null,
+            // Products system
+            products: Storage.get('products', []),
+            activeProductId: Storage.get('activeProductId', null)
         };
 
         // ========== DOM ELEMENTS ==========
@@ -5283,7 +5286,8 @@
                     url: downloadURL,
                     prompt: imageData.prompt || '',
                     date: imageData.date || new Date().toISOString(),
-                    favorite: imageData.favorite || false
+                    favorite: imageData.favorite || false,
+                    collectionId: imageData.collectionId || null
                 });
 
                 return imageId;
@@ -5305,13 +5309,18 @@
                 const gallery = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    gallery.push({
+                    const item = {
                         id: data.id,
                         src: data.url,
                         prompt: data.prompt,
                         date: data.date,
                         favorite: data.favorite
-                    });
+                    };
+                    // Include collectionId if it exists
+                    if (data.collectionId) {
+                        item.collectionId = data.collectionId;
+                    }
+                    gallery.push(item);
                 });
 
                 showSyncIndicator('Gallery synced!', false);
@@ -5445,28 +5454,30 @@
                 if (settings) {
                     if (settings.apiKey) {
                         apiKeyInput.value = settings.apiKey;
+                        // Only save API key to localStorage (useful for form restoration)
                         Storage.set('apiKey', settings.apiKey);
                     }
                     if (settings.systemInstructions) {
                         $('systemInstructions').value = settings.systemInstructions;
+                        // Only save system instructions to localStorage (useful for form restoration)
                         Storage.set('systemInstructions', settings.systemInstructions);
                     }
                     if (settings.activeProductId) {
                         state.activeProductId = settings.activeProductId;
-                        Storage.set('activeProductId', settings.activeProductId);
+                        // Don't save to localStorage - cloud is source of truth when signed in
                     }
                     if (settings.prompts) {
                         state.prompts = settings.prompts;
-                        Storage.set('prompts', settings.prompts);
+                        // Don't save to localStorage - cloud is source of truth when signed in
                     }
                     if (settings.reviewItems) {
                         state.reviewItems = settings.reviewItems;
-                        Storage.set('reviewItems', settings.reviewItems);
+                        // Don't save to localStorage - cloud is source of truth when signed in
                         updateReviewUI();
                     }
                     if (settings.collections) {
                         state.collections = settings.collections;
-                        Storage.set('collections', settings.collections);
+                        // Don't save to localStorage - cloud is source of truth when signed in
                         renderCollections();
                     }
                 }
@@ -5475,7 +5486,7 @@
                 const products = await loadProductsFromCloud();
                 if (products.length > 0) {
                     state.products = products;
-                    Storage.set('products', state.products);
+                    // Don't save to localStorage - cloud is source of truth when signed in
                     renderProducts();
                     updateProductSelect();
                 }
@@ -5525,6 +5536,12 @@
             updateAuthUI(user);
 
             if (user) {
+                // IMPORTANT: Capture truly local data BEFORE loading cloud data
+                // This prevents us from re-migrating data we just downloaded
+                const preLoginLocalGallery = Storage.get('gallery', []);
+                const preLoginLocalProducts = Storage.get('products', []);
+                const preLoginLocalPrompts = Storage.get('prompts', []);
+
                 showSyncIndicator('Syncing data...');
 
                 // Load all data from cloud (settings, products, prompts, etc.)
@@ -5536,11 +5553,10 @@
 
                 showSyncIndicator('Synced!', false);
 
-                // Check if there's local data to migrate
-                const localGallery = Storage.get('gallery', []);
-                const localProducts = Storage.get('products', []);
-                if (localGallery.length > 0 || localProducts.length > 0) {
-                    setTimeout(() => migrateLocalDataToCloud(), 1000);
+                // Check if there was truly local data BEFORE we logged in
+                // Only migrate if we captured local data before cloud sync
+                if (preLoginLocalGallery.length > 0 || preLoginLocalProducts.length > 0) {
+                    setTimeout(() => migrateLocalDataToCloud(preLoginLocalGallery, preLoginLocalProducts, preLoginLocalPrompts), 1000);
                 }
             } else {
                 // Load from local storage when signed out
@@ -5556,61 +5572,74 @@
         });
 
         // Migrate all local data to cloud
-        async function migrateLocalDataToCloud() {
+        // Parameters are pre-captured local data from BEFORE cloud sync
+        async function migrateLocalDataToCloud(localGallery = [], localProducts = [], localPrompts = []) {
             if (!currentUser) return;
 
-            const localGallery = Storage.get('gallery', []);
-            const localProducts = Storage.get('products', []);
-            const localPrompts = Storage.get('prompts', []);
+            // Filter out items that already exist in cloud (by comparing IDs/URLs)
+            // For gallery, check if the image src already exists in cloud gallery
+            const cloudGallerySrcs = new Set(state.gallery.map(item => item.src));
+            const trulyLocalGallery = localGallery.filter(item => !cloudGallerySrcs.has(item.src));
 
-            let hasDataToMigrate = localGallery.length > 0 || localProducts.length > 0;
-            if (!hasDataToMigrate) return;
+            // For products, check by ID
+            const cloudProductIds = new Set(state.products.map(p => p.id.toString()));
+            const trulyLocalProducts = localProducts.filter(p => !cloudProductIds.has(p.id.toString()));
+
+            // For prompts, check by text
+            const cloudPromptTexts = new Set(state.prompts.map(p => p.text));
+            const trulyLocalPrompts = localPrompts.filter(p => !cloudPromptTexts.has(p.text));
+
+            let hasDataToMigrate = trulyLocalGallery.length > 0 || trulyLocalProducts.length > 0;
+            if (!hasDataToMigrate) {
+                // No truly new local data to migrate, clear localStorage
+                Storage.set('gallery', []);
+                Storage.set('products', []);
+                Storage.set('prompts', []);
+                return;
+            }
 
             let message = 'You have local data that can be uploaded to your cloud account:\n';
-            if (localGallery.length > 0) message += `\n- ${localGallery.length} gallery images`;
-            if (localProducts.length > 0) message += `\n- ${localProducts.length} products`;
+            if (trulyLocalGallery.length > 0) message += `\n- ${trulyLocalGallery.length} gallery images`;
+            if (trulyLocalProducts.length > 0) message += `\n- ${trulyLocalProducts.length} products`;
             message += '\n\nWould you like to upload them?';
 
             const shouldMigrate = confirm(message);
-            if (!shouldMigrate) return;
+            if (!shouldMigrate) {
+                // User declined, still clear localStorage to prevent re-prompting
+                Storage.set('gallery', []);
+                Storage.set('products', []);
+                Storage.set('prompts', []);
+                return;
+            }
 
             showSyncIndicator('Uploading local data...');
 
-            // Migrate gallery
-            if (localGallery.length > 0) {
-                for (let i = 0; i < localGallery.length; i++) {
-                    showSyncIndicator(`Uploading image ${i + 1} of ${localGallery.length}...`);
-                    await saveImageToCloud(localGallery[i]);
+            // Migrate gallery (preserving collectionId)
+            if (trulyLocalGallery.length > 0) {
+                for (let i = 0; i < trulyLocalGallery.length; i++) {
+                    showSyncIndicator(`Uploading image ${i + 1} of ${trulyLocalGallery.length}...`);
+                    await saveImageToCloud(trulyLocalGallery[i]);
                 }
-                Storage.set('gallery', []);
             }
+            Storage.set('gallery', []);
 
             // Migrate products
-            if (localProducts.length > 0) {
-                // Merge with existing cloud products
-                const cloudProducts = await loadProductsFromCloud();
-                const existingIds = new Set(cloudProducts.map(p => p.id.toString()));
-
-                for (const product of localProducts) {
-                    if (!existingIds.has(product.id.toString())) {
-                        state.products.push(product);
-                    }
+            if (trulyLocalProducts.length > 0) {
+                for (const product of trulyLocalProducts) {
+                    state.products.push(product);
                 }
                 await saveProductsToCloud();
-                Storage.set('products', []);
             }
+            Storage.set('products', []);
 
             // Migrate prompts (merge with existing)
-            if (localPrompts.length > 0) {
-                const existingTexts = new Set(state.prompts.map(p => p.text));
-                for (const prompt of localPrompts) {
-                    if (!existingTexts.has(prompt.text)) {
-                        state.prompts.push(prompt);
-                    }
+            if (trulyLocalPrompts.length > 0) {
+                for (const prompt of trulyLocalPrompts) {
+                    state.prompts.push(prompt);
                 }
                 await saveSettingsToCloud({ prompts: state.prompts });
-                Storage.set('prompts', []);
             }
+            Storage.set('prompts', []);
 
             showSyncIndicator('Migration complete!', false);
 
@@ -7094,12 +7123,19 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 if (!editingCollectionId) return;
 
                 // Move images from deleted collection to no collection
+                const affectedItems = [];
                 state.gallery.forEach(item => {
                     if (item.collectionId === editingCollectionId) {
                         delete item.collectionId;
+                        affectedItems.push(item);
                     }
                 });
                 Storage.set('gallery', state.gallery);
+
+                // Sync collectionId removal to cloud for each affected image
+                affectedItems.forEach(item => {
+                    updateImageInCloud(item.id, { collectionId: null });
+                });
 
                 state.collections = state.collections.filter(c => c.id !== editingCollectionId);
                 Storage.set('collections', state.collections);
@@ -7212,6 +7248,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 Storage.set('gallery', state.gallery);
                 scheduleCloudSync();
+                // Sync collectionId to cloud for this specific image
+                updateImageInCloud(item.id, { collectionId: item.collectionId || null });
                 renderCollections();
                 const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
                 renderGallery(activeFilter);
@@ -7221,6 +7259,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function moveToCollection(collectionId) {
+            const itemsToSync = [];
+
             if (moveTargetMultiple && selectedGalleryIds.size > 0) {
                 // Move multiple selected items
                 selectedGalleryIds.forEach(id => {
@@ -7231,6 +7271,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         } else {
                             delete item.collectionId;
                         }
+                        itemsToSync.push(item);
                     }
                 });
             } else if (moveTargetImageId) {
@@ -7242,11 +7283,18 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     } else {
                         delete item.collectionId;
                     }
+                    itemsToSync.push(item);
                 }
             }
 
             Storage.set('gallery', state.gallery);
             scheduleCloudSync();
+
+            // Sync collectionId to cloud for each moved item
+            itemsToSync.forEach(item => {
+                updateImageInCloud(item.id, { collectionId: item.collectionId || null });
+            });
+
             renderCollections();
             const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
             renderGallery(activeFilter);
@@ -8503,9 +8551,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         updateWelcomeBanner();
 
         // ========== PRODUCTS TAB ==========
-        // Initialize products state
-        state.products = Storage.get('products', []);
-        state.activeProductId = Storage.get('activeProductId', null);
+        // Products state is already initialized in the state object above
 
         let editingProductId = null;
 
@@ -8659,6 +8705,10 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function setActiveProduct(id) {
             state.activeProductId = id;
             Storage.set('activeProductId', id);
+            // Sync to cloud if signed in
+            if (currentUser) {
+                saveSettingsToCloud({ activeProductId: id });
+            }
             renderProducts();
             updateProductSelect();
         }
