@@ -5400,33 +5400,58 @@
 
         // Helper function to get image data from either a URL or base64 data URL
         async function getImageDataFromSource(imageSource) {
-            if (!imageSource) return null;
+            if (!imageSource) {
+                console.log('getImageDataFromSource: No image source provided');
+                return null;
+            }
+
+            console.log('getImageDataFromSource: Processing', imageSource.substring(0, 100) + '...');
 
             // Check if it's already a base64 data URL
             if (imageSource.startsWith('data:')) {
                 const mimeMatch = imageSource.match(/^data:([^;]+);/);
                 const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
                 const base64Data = imageSource.split(',')[1];
+                console.log('getImageDataFromSource: Extracted base64, mime:', mimeType, 'length:', base64Data?.length);
                 return { mimeType, base64Data };
             }
 
-            // It's a URL - fetch and convert to base64
+            // It's a URL - use canvas approach to avoid CORS issues
+            console.log('getImageDataFromSource: URL detected, loading via canvas...');
             try {
-                const response = await fetch(imageSource);
-                const blob = await response.blob();
-                const mimeType = blob.type || 'image/jpeg';
-
                 return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const base64Data = reader.result.split(',')[1];
-                        resolve({ mimeType, base64Data });
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+
+                    img.onload = () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.naturalWidth;
+                            canvas.height = img.naturalHeight;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+
+                            // Get as JPEG for better compatibility
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                            const base64Data = dataUrl.split(',')[1];
+                            console.log('getImageDataFromSource: Canvas conversion successful, length:', base64Data?.length);
+                            resolve({ mimeType: 'image/jpeg', base64Data });
+                        } catch (canvasError) {
+                            console.error('getImageDataFromSource: Canvas error (CORS?):', canvasError);
+                            resolve(null);
+                        }
                     };
-                    reader.onerror = () => resolve(null);
-                    reader.readAsDataURL(blob);
+
+                    img.onerror = (err) => {
+                        console.error('getImageDataFromSource: Image load error:', err);
+                        resolve(null);
+                    };
+
+                    // Add cache buster to avoid stale responses
+                    img.src = imageSource + (imageSource.includes('?') ? '&' : '?') + 't=' + Date.now();
                 });
             } catch (error) {
-                console.error('Error fetching image from URL:', error);
+                console.error('getImageDataFromSource: Unexpected error:', error);
                 return null;
             }
         }
@@ -6049,21 +6074,34 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             // Build request parts
             const parts = [];
 
-            // Include uploaded image if available
-            if (hasUploadedImage) {
-                parts.push({
-                    inlineData: {
-                        mimeType: state.currentImageMimeType,
-                        data: state.currentImageBase64
-                    }
-                });
-                userMessage += `\n\n[An image has been uploaded - analyze its contents and incorporate accurate visual details]`;
+            // Include image - either from current upload or from product reference
+            // Don't add both if they're the same (when product was selected, image was loaded into state)
+            let imageAdded = false;
+
+            if (hasUploadedImage && state.currentImageBase64) {
+                console.log('Mega Prompt: Adding uploaded image, mime:', state.currentImageMimeType, 'length:', state.currentImageBase64?.length);
+                // Validate base64 data
+                if (state.currentImageBase64.length > 100) {
+                    parts.push({
+                        inlineData: {
+                            mimeType: state.currentImageMimeType || 'image/jpeg',
+                            data: state.currentImageBase64
+                        }
+                    });
+                    userMessage += `\n\n[An image has been provided - analyze its contents and incorporate accurate visual details]`;
+                    imageAdded = true;
+                } else {
+                    console.error('Mega Prompt: Invalid base64 data, length too short');
+                }
             }
 
-            // Include product reference image if available
-            if (hasProductImage) {
+            // Only add product reference image if we haven't already added an image
+            // (When product is selected, its image is loaded into state.currentImageBase64)
+            if (hasProductImage && !imageAdded) {
+                console.log('Mega Prompt: Fetching product reference image...');
                 const productImageData = await getImageDataFromSource(product.referenceImage);
-                if (productImageData) {
+                if (productImageData && productImageData.base64Data?.length > 100) {
+                    console.log('Mega Prompt: Adding product image, mime:', productImageData.mimeType, 'length:', productImageData.base64Data?.length);
                     parts.push({
                         inlineData: {
                             mimeType: productImageData.mimeType,
@@ -6071,6 +6109,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         }
                     });
                     userMessage += `\n\n[A reference image of the product is attached - use it to inform accurate visual details]`;
+                } else {
+                    console.error('Mega Prompt: Failed to get product image data');
                 }
             }
 
@@ -8892,18 +8932,29 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 // Display the image immediately (works with both URL and data URL)
                 displayUploadedImage(product.referenceImage);
-                showStatus(`Loading "${product.name}"...`, 'info');
+                state.currentImage = product.referenceImage;
+                state.originalImage = product.referenceImage;
 
-                // Get the proper image data (handles both URL and base64)
-                const imageData = await getImageDataFromSource(product.referenceImage);
-                if (imageData) {
-                    state.currentImage = product.referenceImage;
-                    state.currentImageBase64 = imageData.base64Data;
-                    state.currentImageMimeType = imageData.mimeType;
-                    state.originalImage = product.referenceImage;
+                // If it's already a base64 data URL, extract the data directly
+                if (product.referenceImage.startsWith('data:')) {
+                    const mimeMatch = product.referenceImage.match(/^data:([^;]+);/);
+                    state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    state.currentImageBase64 = product.referenceImage.split(',')[1];
                     showStatus(`Loaded "${product.name}" - product profile active`, 'success');
                 } else {
-                    showStatus(`Failed to load image from "${product.name}"`, 'error');
+                    // It's a URL - try to get base64 data in background, but don't block
+                    showStatus(`Loaded "${product.name}" - product profile active`, 'success');
+
+                    // Try to pre-cache the image data for API calls
+                    getImageDataFromSource(product.referenceImage).then(imageData => {
+                        if (imageData) {
+                            state.currentImageBase64 = imageData.base64Data;
+                            state.currentImageMimeType = imageData.mimeType;
+                            console.log('Product image data cached for API calls');
+                        } else {
+                            console.log('Could not pre-cache image data - will fetch when needed');
+                        }
+                    });
                 }
 
                 // Keep the product selected (don't reset) so user sees which product is active
