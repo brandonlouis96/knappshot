@@ -8673,7 +8673,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             $('productModal').classList.add('active');
         }
 
-        function saveProduct() {
+        async function saveProduct() {
             const name = $('productName').value.trim();
             const description = $('productDescription').value.trim();
             const goldenPhrases = $('productGoldenPhrases').value.split('\n').map(s => s.trim()).filter(Boolean);
@@ -8687,6 +8687,12 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 alert('Please enter a product name');
                 return;
             }
+
+            // Show saving state
+            const saveBtn = $('saveProductBtn');
+            const originalBtnText = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
 
             if (editingProductId) {
                 // Update existing
@@ -8718,19 +8724,27 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             const saved = Storage.setIfOffline('products', state.products);
             if (!saved) {
-                alert('Warning: Image too large to save locally. It will be saved to your cloud account if you\'re signed in.');
+                console.log('Could not save to localStorage, will save to cloud');
             }
 
-            // Sync to cloud if signed in
+            // Sync to cloud if signed in - WAIT for it to complete
             if (currentUser) {
-                saveProductsToCloud().then(() => {
+                try {
+                    await saveProductsToCloud();
                     console.log('Products saved to cloud successfully');
-                }).catch(err => {
+                } catch (err) {
                     console.error('Failed to save products to cloud:', err);
                     alert('Failed to save product to cloud. Please try again.');
-                });
+                    // Re-enable button so user can retry
+                    saveBtn.textContent = originalBtnText;
+                    saveBtn.disabled = false;
+                    return;
+                }
             }
 
+            // Success - close modal and update UI
+            saveBtn.textContent = originalBtnText;
+            saveBtn.disabled = false;
             closeModal('productModal');
             renderProducts();
             updateProductSelect();
