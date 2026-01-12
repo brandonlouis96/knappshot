@@ -5894,6 +5894,8 @@
         enhanceBtn.addEventListener('click', async () => {
             const prompt = promptInput.value.trim();
             const apiKey = apiKeyInput.value.trim();
+            const product = state.products.find(p => p.id === state.activeProductId);
+
             if (!prompt) { alert('Enter a prompt first'); return; }
             if (!apiKey) { alert('Enter API key first'); return; }
 
@@ -5904,6 +5906,21 @@
                 // Build request parts - include image if uploaded for better context
                 const parts = [];
 
+                // Build product context instructions if a product is selected
+                let productInstructions = '';
+                if (product) {
+                    productInstructions = `\n\nPRODUCT PROFILE REQUIREMENTS:
+- Product Name: ${product.name}
+- Description: ${product.description || 'Not specified'}`;
+                    if ((product.goldenPhrases || []).length) {
+                        productInstructions += `\n- MANDATORY: You MUST naturally incorporate these key phrases: "${product.goldenPhrases.join('", "')}"`;
+                    }
+                    if ((product.forbiddenWords || []).length) {
+                        productInstructions += `\n- FORBIDDEN: NEVER use these terms: ${product.forbiddenWords.join(', ')}`;
+                    }
+                    productInstructions += `\n\nThe enhanced prompt must follow these product requirements exactly.`;
+                }
+
                 if (state.currentImageBase64) {
                     // Include the uploaded image so AI can understand what's in it
                     parts.push({
@@ -5913,12 +5930,12 @@
                         }
                     });
                     parts.push({
-                        text: `I have uploaded an image. First, analyze what's in the image (the subject, objects, style, colors, etc.). Then enhance this image editing prompt to be more detailed and effective, making sure it accurately refers to what's actually in the image. Keep the enhanced prompt concise (1-2 sentences). Original prompt: "${prompt}". Return ONLY the enhanced prompt, nothing else.`
+                        text: `I have uploaded an image. First, analyze what's in the image (the subject, objects, style, colors, etc.). Then enhance this image editing prompt to be more detailed and effective, making sure it accurately refers to what's actually in the image. Keep the enhanced prompt concise (1-2 sentences).${productInstructions} Original prompt: "${prompt}". Return ONLY the enhanced prompt, nothing else.`
                     });
                 } else {
                     // No image - just enhance the text prompt
                     parts.push({
-                        text: `Enhance this image editing prompt to be more detailed and effective. Keep it concise (1-2 sentences). Original: "${prompt}". Return ONLY the enhanced prompt, nothing else.`
+                        text: `Enhance this image editing prompt to be more detailed and effective. Keep it concise (1-2 sentences).${productInstructions} Original: "${prompt}". Return ONLY the enhanced prompt, nothing else.`
                     });
                 }
 
@@ -5968,15 +5985,16 @@
             let userMessage = `INPUT: "${idea}"`;
 
             if (product) {
-                userMessage += `\n\nPRODUCT CONTEXT:
+                userMessage += `\n\nPRODUCT PROFILE REQUIREMENTS:
 - Product Name: ${product.name}
 - Description: ${product.description || 'Not specified'}`;
                 if ((product.goldenPhrases || []).length) {
-                    userMessage += `\n- Key Phrases to Include: "${product.goldenPhrases.join('", "')}"`;
+                    userMessage += `\n- MANDATORY PHRASES (you MUST weave these naturally into the prompt): "${product.goldenPhrases.join('", "')}"`;
                 }
                 if ((product.forbiddenWords || []).length) {
-                    userMessage += `\n- Terms to Avoid: ${product.forbiddenWords.join(', ')}`;
+                    userMessage += `\n- FORBIDDEN TERMS (NEVER use these words): ${product.forbiddenWords.join(', ')}`;
                 }
+                userMessage += `\n\nCRITICAL: The generated Mega Prompt must strictly follow these product requirements.`;
             }
 
             // Add aspect ratio constraint
@@ -9220,15 +9238,16 @@ A bulleted list of what to explicitly AVOID:
             let userMessage = `INPUT: "${idea}"`;
 
             if (product) {
-                userMessage += `\n\nPRODUCT CONTEXT:
+                userMessage += `\n\nPRODUCT PROFILE REQUIREMENTS:
 - Product Name: ${product.name}
 - Description: ${product.description || 'Not specified'}`;
                 if ((product.goldenPhrases || []).length) {
-                    userMessage += `\n- Key Phrases to Include: "${product.goldenPhrases.join('", "')}"`;
+                    userMessage += `\n- MANDATORY PHRASES (you MUST weave these naturally into the prompt): "${product.goldenPhrases.join('", "')}"`;
                 }
                 if ((product.forbiddenWords || []).length) {
-                    userMessage += `\n- Terms to Avoid: ${product.forbiddenWords.join(', ')}`;
+                    userMessage += `\n- FORBIDDEN TERMS (NEVER use these words): ${product.forbiddenWords.join(', ')}`;
                 }
+                userMessage += `\n\nCRITICAL: The generated Mega Prompt must strictly follow these product requirements.`;
             }
 
             if (promptGenSettings.style) {
