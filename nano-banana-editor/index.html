@@ -5497,14 +5497,12 @@
                     }
                 }
 
-                // Load products
+                // Load products - always use cloud as source of truth when signed in
                 const products = await loadProductsFromCloud();
-                if (products.length > 0) {
-                    state.products = products;
-                    // Don't save to localStorage - cloud is source of truth when signed in
-                    renderProducts();
-                    updateProductSelect();
-                }
+                state.products = products;
+                // Don't save to localStorage - cloud is source of truth when signed in
+                renderProducts();
+                updateProductSelect();
 
                 updateWelcomeBanner();
             } catch (error) {
@@ -8690,7 +8688,12 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             // Sync to cloud if signed in
             if (currentUser) {
-                saveProductsToCloud();
+                saveProductsToCloud().then(() => {
+                    console.log('Products saved to cloud successfully');
+                }).catch(err => {
+                    console.error('Failed to save products to cloud:', err);
+                    alert('Failed to save product to cloud. Please try again.');
+                });
             }
 
             closeModal('productModal');
