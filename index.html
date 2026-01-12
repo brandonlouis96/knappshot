@@ -5397,10 +5397,28 @@
         }
 
         // ========== CLOUD SYNC FOR PRODUCTS ==========
+        async function uploadProductImage(productId, base64Image) {
+            // Upload reference image to Firebase Storage and return download URL
+            try {
+                const imageRef = storage.ref(`users/${currentUser.uid}/products/${productId}`);
+
+                // Convert base64 to blob
+                const response = await fetch(base64Image);
+                const blob = await response.blob();
+
+                // Upload to Storage
+                await imageRef.put(blob);
+                const downloadURL = await imageRef.getDownloadURL();
+                return downloadURL;
+            } catch (error) {
+                console.error('Error uploading product image:', error);
+                return null;
+            }
+        }
+
         async function saveProductsToCloud() {
             if (!currentUser) return;
             try {
-                // Products with reference images can be large, store separately
                 const productsRef = db.collection('users').doc(currentUser.uid).collection('products');
 
                 // Get existing products to find ones to delete
@@ -5411,7 +5429,23 @@
                 // Save each product
                 for (const product of state.products) {
                     const productId = product.id.toString();
-                    await productsRef.doc(productId).set(product);
+                    const productToSave = { ...product };
+
+                    // If referenceImage is a base64 data URL (large), upload to Storage first
+                    if (productToSave.referenceImage && productToSave.referenceImage.startsWith('data:')) {
+                        console.log('Uploading product reference image to Storage...');
+                        const imageUrl = await uploadProductImage(productId, productToSave.referenceImage);
+                        if (imageUrl) {
+                            productToSave.referenceImage = imageUrl;
+                            // Update local state with the URL too
+                            product.referenceImage = imageUrl;
+                        } else {
+                            // If upload failed, remove image to prevent Firestore error
+                            delete productToSave.referenceImage;
+                        }
+                    }
+
+                    await productsRef.doc(productId).set(productToSave);
                     existingIds.delete(productId);
                 }
 
@@ -5421,6 +5455,7 @@
                 }
             } catch (error) {
                 console.error('Error saving products to cloud:', error);
+                throw error; // Re-throw so the caller knows it failed
             }
         }
 
