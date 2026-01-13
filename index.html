@@ -9226,6 +9226,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 action: () => document.querySelector('[data-tab="editor"]')?.click()
             },
             {
+                target: '[data-tab="products"]',
+                title: 'Product Profiles',
+                icon: '📦',
+                description: 'Create profiles for your products or brands. Add a <strong>description</strong>, <strong>golden phrases</strong> you love, and <strong>forbidden words</strong> to avoid.<br><br>When you select a product in the Editor, the AI will use this context to generate on-brand prompts every time!',
+                position: 'bottom',
+                action: () => document.querySelector('[data-tab="products"]')?.click()
+            },
+            {
                 target: '[data-tab="gallery"]',
                 title: 'Your Gallery',
                 icon: '🖼️',
@@ -9240,6 +9248,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 description: 'When using <strong>Batch Mode</strong>, your generated images appear here first for review. Approve the ones you like to add them to your Gallery, or discard the ones you don\'t want.',
                 position: 'bottom',
                 action: () => document.querySelector('[data-tab="review"]')?.click()
+            },
+            {
+                target: '[data-tab="breakdown"]',
+                title: 'Image Breakdown',
+                icon: '🔍',
+                description: 'Upload any image to analyze what makes it work. Great for studying successful ads or content!<br><br>You can also link a <strong>Product Profile</strong> to get a rewritten concept tailored specifically for your product.',
+                position: 'bottom',
+                action: () => document.querySelector('[data-tab="breakdown"]')?.click()
             },
             {
                 target: '#loginBtn, .user-info',
