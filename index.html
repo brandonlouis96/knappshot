@@ -3176,6 +3176,149 @@
             }
         }
 
+        /* ========== GALLERY PICKER MODAL STYLES ========== */
+        .gallery-picker-modal {
+            max-width: 700px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gallery-picker-modal h3 {
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        .gallery-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            overflow-y: auto;
+            max-height: 50vh;
+            padding: 4px;
+        }
+
+        .gallery-picker-item {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .gallery-picker-item:hover {
+            border-color: var(--color-purple);
+            transform: scale(1.03);
+        }
+
+        .gallery-picker-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-picker-empty {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .gallery-picker-empty.show {
+            display: flex;
+        }
+
+        .gallery-picker-empty span {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        .gallery-picker-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .gallery-picker-filter-btn {
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gallery-picker-filter-btn:hover {
+            border-color: var(--color-purple);
+            color: var(--text-primary);
+        }
+
+        .gallery-picker-filter-btn.active {
+            background: var(--color-purple);
+            border-color: var(--color-purple);
+            color: #fff;
+        }
+
+        /* Upload Options Popup */
+        .upload-options-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-modal);
+            border: 1px solid var(--border-medium);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 220px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .upload-options-popup.show {
+            display: flex;
+        }
+
+        .upload-option-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-option-btn:hover {
+            background: var(--border-light);
+            border-color: var(--color-purple);
+        }
+
+        .upload-option-btn span {
+            font-size: 1.3rem;
+        }
+
+        /* Make upload areas position relative for popup */
+        .upload-area, .ref-upload-area {
+            position: relative;
+        }
+
         /* ========== QUEUE PANEL STYLES ========== */
         .queue-panel {
             background: var(--bg-card);
@@ -4491,6 +4634,7 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.3/dist/heic2any.min.js"></script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -4648,9 +4792,17 @@
                         <div class="upload-icon">🖼️</div>
                         <div class="upload-text">
                             <strong>Drop an image to edit</strong><br>
-                            or generate from text only
+                            or click to upload
                         </div>
-                        <input type="file" id="fileInput" class="hidden-input" accept="image/*" multiple>
+                        <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                        <div class="upload-options-popup" id="mainUploadOptions">
+                            <button class="upload-option-btn" onclick="triggerFileUpload('main')">
+                                <span>💻</span> Upload from Computer
+                            </button>
+                            <button class="upload-option-btn" onclick="openGalleryPicker('main')">
+                                <span>🖼️</span> Select from Gallery
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Load from Product -->
@@ -4664,7 +4816,15 @@
                     <!-- Reference Image -->
                     <div class="ref-upload-area" id="refUploadArea">
                         <div class="ref-label">+ Add Style Reference (optional)</div>
-                        <input type="file" id="refFileInput" class="hidden-input" accept="image/*">
+                        <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif">
+                        <div class="upload-options-popup" id="refUploadOptions">
+                            <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                                <span>💻</span> Upload from Computer
+                            </button>
+                            <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                                <span>🖼️</span> Select from Gallery
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Batch Mode Preview -->
@@ -5047,7 +5207,7 @@
                         <div class="breakdown-upload-text">Drop an image here or click to upload</div>
                         <div class="breakdown-upload-hint">Supports JPG, PNG, WebP</div>
                     </div>
-                    <input type="file" id="breakdownFileInput" class="hidden-input" accept="image/*">
+                    <input type="file" id="breakdownFileInput" class="hidden-input" accept="image/*,.heic,.heif">
                 </div>
 
                 <!-- Image Preview -->
@@ -5126,6 +5286,20 @@
         </div>
     </div>
 
+    <!-- Gallery Picker Modal -->
+    <div class="modal" id="galleryPickerModal">
+        <div class="modal-content gallery-picker-modal">
+            <button class="modal-close" onclick="closeGalleryPicker()">&times;</button>
+            <h3 id="galleryPickerTitle">Select from Gallery</h3>
+            <div class="gallery-picker-filters" id="galleryPickerFilters"></div>
+            <div class="gallery-picker-grid" id="galleryPickerGrid"></div>
+            <div class="gallery-picker-empty" id="galleryPickerEmpty">
+                <span>🖼️</span>
+                <p>No images in your gallery yet</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Export Modal -->
     <div class="modal" id="exportModal">
         <div class="modal-content" style="position: relative;">
@@ -5197,7 +5371,7 @@
                 </div>
                 <div class="form-field">
                     <label>Reference Image <span class="field-hint">(Optional)</span></label>
-                    <input type="file" id="productImageInput" class="hidden-input" accept="image/*">
+                    <input type="file" id="productImageInput" class="hidden-input" accept="image/*,.heic,.heif">
                     <label for="productImageInput" class="product-image-upload" id="productImageUpload">
                         <span>Click to upload reference image</span>
                     </label>
@@ -6195,31 +6369,319 @@
         }
 
         // ========== FILE UPLOAD ==========
-        uploadArea.addEventListener('click', () => fileInput.click());
+        let currentUploadTarget = null; // 'main' or 'ref'
+
+        uploadArea.addEventListener('click', (e) => {
+            // Don't show options if clicking on clear button or if image is already displayed
+            if (e.target.closest('.clear-btn') || e.target.closest('.upload-option-btn')) return;
+            if (state.currentImage) return; // If image exists, don't show options
+
+            const popup = $('mainUploadOptions');
+            popup.classList.toggle('show');
+            // Hide ref popup if open
+            $('refUploadOptions')?.classList.remove('show');
+        });
         uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
         uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
         uploadArea.addEventListener('drop', e => {
             e.preventDefault();
             uploadArea.classList.remove('drag-over');
+            $('mainUploadOptions')?.classList.remove('show');
             handleFiles(e.dataTransfer.files);
         });
-        fileInput.addEventListener('change', e => handleFiles(e.target.files));
+        fileInput.addEventListener('change', e => {
+            handleFiles(e.target.files);
+            $('mainUploadOptions')?.classList.remove('show');
+        });
 
-        function handleFiles(files) {
+        // Hide popups when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.upload-area') && !e.target.closest('.ref-upload-area')) {
+                $('mainUploadOptions')?.classList.remove('show');
+                $('refUploadOptions')?.classList.remove('show');
+            }
+        });
+
+        // Trigger file upload from popup
+        function triggerFileUpload(target) {
+            if (target === 'main') {
+                $('fileInput')?.click();
+            } else if (target === 'ref') {
+                $('refFileInput')?.click();
+            }
+            $('mainUploadOptions')?.classList.remove('show');
+            $('refUploadOptions')?.classList.remove('show');
+        }
+
+        // Gallery picker functions
+        let galleryPickerFilter = null; // Currently selected collection filter
+        let galleryPickerItems = []; // Filtered items for selection
+
+        function openGalleryPicker(target) {
+            currentUploadTarget = target;
+            galleryPickerFilter = null; // Reset filter
+            const modal = $('galleryPickerModal');
+            const title = $('galleryPickerTitle');
+
+            title.textContent = target === 'ref' ? 'Select Style Reference from Gallery' : 'Select Image from Gallery';
+
+            // Hide upload options popups
+            $('mainUploadOptions')?.classList.remove('show');
+            $('refUploadOptions')?.classList.remove('show');
+
+            // Render collection filters
+            renderGalleryPickerFilters();
+            // Render gallery items
+            renderGalleryPickerItems();
+
+            modal.classList.add('active');
+        }
+
+        function renderGalleryPickerFilters() {
+            const filters = $('galleryPickerFilters');
+            if (!filters) return;
+
+            // Build filter buttons: All + each collection
+            let html = `<button class="gallery-picker-filter-btn ${galleryPickerFilter === null ? 'active' : ''}" onclick="filterGalleryPicker(null)">All</button>`;
+
+            if (state.collections && state.collections.length > 0) {
+                html += state.collections.map(col => `
+                    <button class="gallery-picker-filter-btn ${galleryPickerFilter === col.id ? 'active' : ''}" onclick="filterGalleryPicker('${col.id}')">
+                        ${escapeHtml(col.name)}
+                    </button>
+                `).join('');
+            }
+
+            filters.innerHTML = html;
+        }
+
+        function filterGalleryPicker(collectionId) {
+            galleryPickerFilter = collectionId;
+            renderGalleryPickerFilters();
+            renderGalleryPickerItems();
+        }
+
+        function renderGalleryPickerItems() {
+            const grid = $('galleryPickerGrid');
+            const empty = $('galleryPickerEmpty');
+
+            // Filter items by collection if selected
+            galleryPickerItems = galleryPickerFilter
+                ? state.gallery.filter(item => item.collectionId === galleryPickerFilter)
+                : [...state.gallery];
+
+            if (galleryPickerItems.length === 0) {
+                grid.innerHTML = '';
+                empty.classList.add('show');
+            } else {
+                empty.classList.remove('show');
+                grid.innerHTML = galleryPickerItems.map((item, i) => `
+                    <div class="gallery-picker-item" onclick="selectFromGalleryPicker(${i})">
+                        <img src="${item.src}" alt="Gallery image">
+                    </div>
+                `).join('');
+            }
+        }
+
+        function closeGalleryPicker() {
+            $('galleryPickerModal').classList.remove('active');
+            currentUploadTarget = null;
+            galleryPickerFilter = null;
+        }
+
+        function selectFromGalleryPicker(index) {
+            const item = galleryPickerItems[index];
+            if (!item) return;
+
+            if (currentUploadTarget === 'main') {
+                state.currentImage = item.src;
+                state.originalImage = item.src;
+                // Extract base64 data
+                if (item.src.startsWith('data:')) {
+                    const mimeMatch = item.src.match(/^data:([^;]+);/);
+                    state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    state.currentImageBase64 = item.src.split(',')[1];
+                } else {
+                    state.currentImageMimeType = 'image/jpeg';
+                    state.currentImageBase64 = null;
+                }
+                displayUploadedImage(item.src);
+            } else if (currentUploadTarget === 'ref') {
+                state.referenceImage = item.src;
+                if (item.src.startsWith('data:')) {
+                    state.referenceImageBase64 = item.src.split(',')[1];
+                }
+                refUploadArea.innerHTML = `
+                    <img src="${state.referenceImage}" alt="Reference">
+                    <button class="clear-btn" onclick="clearRef(event)">Clear</button>
+                    <div class="upload-options-popup" id="refUploadOptions">
+                        <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                            <span>💻</span> Upload from Computer
+                        </button>
+                        <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                            <span>🖼️</span> Select from Gallery
+                        </button>
+                    </div>
+                `;
+            }
+
+            closeGalleryPicker();
+        }
+
+        // Check if file is HEIC/HEIF format
+        function isHeicFile(file) {
+            const type = (file.type || '').toLowerCase();
+            const name = (file.name || '').toLowerCase();
+            return type === 'image/heic' || type === 'image/heif' ||
+                   type === '' && (name.endsWith('.heic') || name.endsWith('.heif')) ||
+                   name.endsWith('.heic') || name.endsWith('.heif');
+        }
+
+        // Try to convert HEIC using native browser canvas (works in Safari)
+        async function tryNativeHeicConversion(file) {
+            return new Promise((resolve) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        canvas.toBlob((blob) => {
+                            URL.revokeObjectURL(url);
+                            if (blob && blob.size > 0) {
+                                const convertedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+                                resolve(convertedFile);
+                            } else {
+                                resolve(null);
+                            }
+                        }, 'image/jpeg', 0.92);
+                    } catch (e) {
+                        URL.revokeObjectURL(url);
+                        resolve(null);
+                    }
+                };
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    resolve(null);
+                };
+
+                img.src = url;
+            });
+        }
+
+        // Convert HEIC to JPEG
+        async function convertHeicToJpeg(file) {
+            showStatus('Converting HEIC image... (this may take a moment)', 'info');
+            console.log('Starting HEIC conversion for:', file.name, 'type:', file.type, 'size:', file.size);
+
+            // First, try native browser support (Safari on Mac supports HEIC natively)
+            console.log('Trying native browser HEIC support...');
+            const nativeResult = await tryNativeHeicConversion(file);
+            if (nativeResult) {
+                console.log('Native conversion succeeded!');
+                showStatus('HEIC converted successfully!', 'success');
+                return nativeResult;
+            }
+            console.log('Native conversion failed, trying heic2any library...');
+
+            // Fall back to heic2any library
+            if (typeof heic2any === 'undefined') {
+                console.error('heic2any library not loaded');
+                showStatus('HEIC conversion not available. Try using Safari or convert the image to JPG first.', 'error');
+                return null;
+            }
+
+            try {
+                const blob = await heic2any({
+                    blob: file,
+                    toType: 'image/jpeg',
+                    quality: 0.92,
+                    multiple: true
+                });
+
+                console.log('HEIC conversion result:', blob);
+
+                // heic2any can return array or single blob
+                const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+
+                if (!resultBlob || resultBlob.size === 0) {
+                    throw new Error('Conversion produced empty result');
+                }
+
+                const convertedFile = new File([resultBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+                console.log('Converted file:', convertedFile.name, 'type:', convertedFile.type, 'size:', convertedFile.size);
+
+                showStatus('HEIC converted successfully!', 'success');
+                return convertedFile;
+            } catch (error) {
+                console.error('HEIC conversion error:', error);
+                showStatus('Could not convert HEIC. Please convert to JPG/PNG first, or use Safari browser.', 'error');
+                return null;
+            }
+        }
+
+        // Process any image file - converts HEIC if needed, returns data URL
+        async function processImageFile(file) {
+            if (!file) return null;
+
+            let processFile = file;
+
+            // Convert HEIC if needed
+            if (isHeicFile(file)) {
+                processFile = await convertHeicToJpeg(file);
+                if (!processFile) return null;
+            }
+
+            // Read as data URL
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    resolve({
+                        dataUrl: e.target.result,
+                        base64: e.target.result.split(',')[1],
+                        mimeType: processFile.type || 'image/jpeg'
+                    });
+                };
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(processFile);
+            });
+        }
+
+        async function handleFiles(files) {
             if (state.mode === 'batch') {
-                Array.from(files).forEach(file => {
-                    if (file.type.startsWith('image/') && state.batchImages.length < 10) {
+                for (const file of Array.from(files)) {
+                    if ((file.type.startsWith('image/') || isHeicFile(file)) && state.batchImages.length < 10) {
+                        let processFile = file;
+
+                        // Convert HEIC if needed
+                        if (isHeicFile(file)) {
+                            processFile = await convertHeicToJpeg(file);
+                            if (!processFile) continue;
+                        }
+
                         const reader = new FileReader();
                         reader.onload = e => {
-                            state.batchImages.push({ src: e.target.result, base64: e.target.result.split(',')[1], mimeType: file.type });
+                            state.batchImages.push({ src: e.target.result, base64: e.target.result.split(',')[1], mimeType: processFile.type });
                             renderBatchGrid();
                         };
-                        reader.readAsDataURL(file);
+                        reader.readAsDataURL(processFile);
                     }
-                });
+                }
             } else {
-                const file = files[0];
-                if (file && file.type.startsWith('image/')) {
+                let file = files[0];
+                if (file && (file.type.startsWith('image/') || isHeicFile(file))) {
+                    // Convert HEIC if needed
+                    if (isHeicFile(file)) {
+                        file = await convertHeicToJpeg(file);
+                        if (!file) return;
+                    }
+
                     state.currentImageMimeType = file.type;
                     const reader = new FileReader();
                     reader.onload = e => {
@@ -6227,6 +6689,7 @@
                         state.currentImageBase64 = e.target.result.split(',')[1];
                         state.originalImage = e.target.result;
                         displayUploadedImage(state.currentImage);
+                        showStatus('Image loaded!', 'success');
                     };
                     reader.readAsDataURL(file);
                 }
@@ -6237,6 +6700,14 @@
             uploadArea.innerHTML = `
                 <img src="${src}" alt="Uploaded">
                 <button class="clear-btn" onclick="clearImage(event)">Clear</button>
+                <div class="upload-options-popup" id="mainUploadOptions">
+                    <button class="upload-option-btn" onclick="triggerFileUpload('main')">
+                        <span>💻</span> Upload from Computer
+                    </button>
+                    <button class="upload-option-btn" onclick="openGalleryPicker('main')">
+                        <span>🖼️</span> Select from Gallery
+                    </button>
+                </div>
             `;
         }
 
@@ -6247,9 +6718,23 @@
             state.originalImage = null;
             uploadArea.innerHTML = `
                 <div class="upload-icon">🖼️</div>
-                <div class="upload-text"><strong>Drop an image to edit</strong><br>or generate from text only</div>
+                <div class="upload-text"><strong>Drop an image to edit</strong><br>or click to upload</div>
+                <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                <div class="upload-options-popup" id="mainUploadOptions">
+                    <button class="upload-option-btn" onclick="triggerFileUpload('main')">
+                        <span>💻</span> Upload from Computer
+                    </button>
+                    <button class="upload-option-btn" onclick="openGalleryPicker('main')">
+                        <span>🖼️</span> Select from Gallery
+                    </button>
+                </div>
             `;
-            fileInput.value = '';
+            // Re-attach event listener to new file input
+            const newFileInput = $('fileInput');
+            newFileInput.addEventListener('change', e => {
+                handleFiles(e.target.files);
+                $('mainUploadOptions')?.classList.remove('show');
+            });
         }
 
         function resetResultArea() {
@@ -6276,17 +6761,37 @@
         }
 
         // Reference Image
-        refUploadArea.addEventListener('click', () => refFileInput.click());
-        refFileInput.addEventListener('change', e => {
+        refUploadArea.addEventListener('click', (e) => {
+            // Don't show options if clicking on clear button or option buttons
+            if (e.target.closest('.clear-btn') || e.target.closest('.upload-option-btn')) return;
+            if (state.referenceImage) return; // If image exists, don't show options
+
+            const popup = $('refUploadOptions');
+            popup?.classList.toggle('show');
+            // Hide main popup if open
+            $('mainUploadOptions')?.classList.remove('show');
+        });
+        refFileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    state.referenceImage = ev.target.result;
-                    state.referenceImageBase64 = ev.target.result.split(',')[1];
-                    refUploadArea.innerHTML = `<img src="${state.referenceImage}" alt="Reference"><button class="clear-btn" onclick="clearRef(event)">Clear</button>`;
-                };
-                reader.readAsDataURL(file);
+                const result = await processImageFile(file);
+                if (result) {
+                    state.referenceImage = result.dataUrl;
+                    state.referenceImageBase64 = result.base64;
+                    refUploadArea.innerHTML = `
+                        <img src="${state.referenceImage}" alt="Reference">
+                        <button class="clear-btn" onclick="clearRef(event)">Clear</button>
+                        <div class="upload-options-popup" id="refUploadOptions">
+                            <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                                <span>💻</span> Upload from Computer
+                            </button>
+                            <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                                <span>🖼️</span> Select from Gallery
+                            </button>
+                        </div>
+                    `;
+                    showStatus('Reference image loaded!', 'success');
+                }
             }
         });
 
@@ -6294,8 +6799,43 @@
             e.stopPropagation();
             state.referenceImage = null;
             state.referenceImageBase64 = null;
-            refUploadArea.innerHTML = '<div class="ref-label">+ Add Style Reference (optional)</div>';
-            refFileInput.value = '';
+            refUploadArea.innerHTML = `
+                <div class="ref-label">+ Add Style Reference (optional)</div>
+                <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif">
+                <div class="upload-options-popup" id="refUploadOptions">
+                    <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                        <span>💻</span> Upload from Computer
+                    </button>
+                    <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                        <span>🖼️</span> Select from Gallery
+                    </button>
+                </div>
+            `;
+            // Re-attach event listener to new file input
+            const newRefInput = $('refFileInput');
+            newRefInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const result = await processImageFile(file);
+                    if (result) {
+                        state.referenceImage = result.dataUrl;
+                        state.referenceImageBase64 = result.base64;
+                        refUploadArea.innerHTML = `
+                            <img src="${state.referenceImage}" alt="Reference">
+                            <button class="clear-btn" onclick="clearRef(event)">Clear</button>
+                            <div class="upload-options-popup" id="refUploadOptions">
+                                <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                                    <span>💻</span> Upload from Computer
+                                </button>
+                                <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                                    <span>🖼️</span> Select from Gallery
+                                </button>
+                            </div>
+                        `;
+                        showStatus('Reference image loaded!', 'success');
+                    }
+                }
+            });
         }
 
         // ========== STYLE PRESETS ==========
@@ -8583,13 +9123,54 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
-        function downloadLightboxImage() {
+        async function downloadLightboxImage() {
             const img = lightboxImages[lightboxIndex];
             const src = img.src || img;
+            const filename = `knappshot-${Date.now()}.png`;
+
+            showStatus('Preparing download...', 'info');
+
+            try {
+                // For data URLs, convert to blob and download directly
+                if (src.startsWith('data:')) {
+                    const response = await fetch(src);
+                    const blob = await response.blob();
+                    triggerDownload(blob, filename);
+                    return;
+                }
+
+                // For external URLs (like Firebase Storage), fetch as blob and download
+                const response = await fetch(src);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch image');
+                }
+                const blob = await response.blob();
+                triggerDownload(blob, filename);
+                showStatus('Download started!', 'success');
+
+            } catch (error) {
+                console.error('Download error:', error);
+                showStatus('Right-click the image and select "Save Image As..."', 'error');
+            }
+        }
+
+        // Helper function to trigger download from blob
+        function triggerDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = src;
-            link.download = `knappshot-${Date.now()}.png`;
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
             link.click();
+
+            // Cleanup after a short delay
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+
+            showStatus('Download started!', 'success');
         }
 
         function editFromLightbox() {
@@ -9301,17 +9882,17 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         // Product image upload handler (label handles click natively via for="productImageInput")
-        $('productImageInput')?.addEventListener('change', (e) => {
+        $('productImageInput')?.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
+                const result = await processImageFile(file);
+                if (result) {
                     const uploadArea = $('productImageUpload');
-                    uploadArea.innerHTML = `<img src="${event.target.result}" alt="Reference">`;
+                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference">`;
                     // Store temporarily for saving
-                    uploadArea.dataset.imageData = event.target.result;
-                };
-                reader.readAsDataURL(file);
+                    uploadArea.dataset.imageData = result.dataUrl;
+                    showStatus('Product image loaded!', 'success');
+                }
             }
         });
 
@@ -10097,38 +10678,40 @@ A bulleted list of what to explicitly AVOID:
             breakdownUploadArea.classList.remove('dragover');
         });
 
-        breakdownUploadArea?.addEventListener('drop', (e) => {
+        breakdownUploadArea?.addEventListener('drop', async (e) => {
             e.preventDefault();
             breakdownUploadArea.classList.remove('dragover');
             const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                handleBreakdownImage(file);
+            if (file && (file.type.startsWith('image/') || isHeicFile(file))) {
+                await handleBreakdownImage(file);
             }
         });
 
-        breakdownFileInput?.addEventListener('change', (e) => {
+        breakdownFileInput?.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                handleBreakdownImage(file);
+                await handleBreakdownImage(file);
             }
         });
 
-        function handleBreakdownImage(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const base64 = e.target.result;
-                breakdownPreviewImg.src = base64;
-                breakdownImagePreview.classList.add('show');
-                breakdownUploadArea.style.display = 'none';
-                analyzeImageBtn.disabled = false;
+        async function handleBreakdownImage(file) {
+            // Process file (convert HEIC if needed)
+            const result = await processImageFile(file);
+            if (!result) {
+                showStatus('Failed to load image', 'error');
+                return;
+            }
 
-                // Store image data for API call
-                breakdownImageData = {
-                    base64Data: base64.split(',')[1],
-                    mimeType: file.type
-                };
+            breakdownPreviewImg.src = result.dataUrl;
+            breakdownImagePreview.classList.add('show');
+            breakdownUploadArea.style.display = 'none';
+            analyzeImageBtn.disabled = false;
+
+            // Store image data for API call
+            breakdownImageData = {
+                base64Data: result.base64,
+                mimeType: result.mimeType
             };
-            reader.readAsDataURL(file);
         }
 
         breakdownRemoveBtn?.addEventListener('click', () => {
