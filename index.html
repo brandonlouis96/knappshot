@@ -4791,8 +4791,8 @@
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-icon">🖼️</div>
                         <div class="upload-text">
-                            <strong>Drop an image to edit</strong><br>
-                            or click to upload
+                            <strong>Drop, paste, or click</strong><br>
+                            to upload an image
                         </div>
                         <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
                         <div class="upload-options-popup" id="mainUploadOptions">
@@ -4823,6 +4823,9 @@
                             </button>
                             <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
                                 <span>🖼️</span> Select from Gallery
+                            </button>
+                            <button class="upload-option-btn" onclick="pasteToRef()">
+                                <span>📋</span> Paste from Clipboard
                             </button>
                         </div>
                     </div>
@@ -5204,8 +5207,8 @@
                 <div class="breakdown-upload-area" id="breakdownUploadArea">
                     <div class="breakdown-upload-content">
                         <div class="breakdown-upload-icon">🖼️</div>
-                        <div class="breakdown-upload-text">Drop an image here or click to upload</div>
-                        <div class="breakdown-upload-hint">Supports JPG, PNG, WebP</div>
+                        <div class="breakdown-upload-text">Drop, paste, or click to upload</div>
+                        <div class="breakdown-upload-hint">Supports JPG, PNG, WebP, HEIC</div>
                     </div>
                     <input type="file" id="breakdownFileInput" class="hidden-input" accept="image/*,.heic,.heif">
                 </div>
@@ -6413,6 +6416,106 @@
             $('refUploadOptions')?.classList.remove('show');
         }
 
+        // Paste from clipboard for reference image
+        async function pasteToRef() {
+            $('refUploadOptions')?.classList.remove('show');
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const item of clipboardItems) {
+                    const imageType = item.types.find(type => type.startsWith('image/'));
+                    if (imageType) {
+                        const blob = await item.getType(imageType);
+                        const file = new File([blob], 'pasted-image.png', { type: imageType });
+                        const result = await processImageFile(file);
+                        if (result) {
+                            state.referenceImage = result.dataUrl;
+                            state.referenceImageBase64 = result.base64;
+                            refUploadArea.innerHTML = `
+                                <img src="${state.referenceImage}" alt="Reference">
+                                <button class="clear-btn" onclick="clearRef(event)">Clear</button>
+                                <div class="upload-options-popup" id="refUploadOptions">
+                                    <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                                        <span>💻</span> Upload from Computer
+                                    </button>
+                                    <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                                        <span>🖼️</span> Select from Gallery
+                                    </button>
+                                    <button class="upload-option-btn" onclick="pasteToRef()">
+                                        <span>📋</span> Paste from Clipboard
+                                    </button>
+                                </div>
+                            `;
+                            showStatus('Reference image pasted!', 'success');
+                            return;
+                        }
+                    }
+                }
+                showStatus('No image found in clipboard', 'error');
+            } catch (err) {
+                showStatus('Unable to read clipboard. Try Ctrl+V after clicking the upload area.', 'error');
+            }
+        }
+
+        // Global paste handler for images
+        document.addEventListener('paste', async (e) => {
+            // Don't intercept if user is typing in an input/textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            let imageFile = null;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    imageFile = item.getAsFile();
+                    break;
+                }
+            }
+            if (!imageFile) return;
+
+            e.preventDefault();
+
+            // Determine where to paste based on current context
+            const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+            const productModal = $('productModal');
+            const isProductModalOpen = productModal?.classList.contains('active');
+
+            // If product modal is open, paste to product image
+            if (isProductModalOpen) {
+                const result = await processImageFile(imageFile);
+                if (result) {
+                    const uploadArea = $('productImageUpload');
+                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference">`;
+                    uploadArea.dataset.imageData = result.dataUrl;
+                    showStatus('Image pasted to product!', 'success');
+                }
+                return;
+            }
+
+            // Based on active tab
+            if (activeTab === 'breakdown') {
+                // Paste to breakdown upload
+                const result = await processImageFile(imageFile);
+                if (result) {
+                    breakdownImageData = {
+                        mimeType: result.mimeType,
+                        base64Data: result.base64
+                    };
+                    $('breakdownPreviewImg').src = result.dataUrl;
+                    $('breakdownUploadArea').style.display = 'none';
+                    $('breakdownImagePreview').style.display = 'block';
+                    $('analyzeImageBtn').disabled = false;
+                    $('breakdownOutput')?.classList.remove('show');
+                    $('breakdownRewrite')?.classList.remove('show');
+                    showStatus('Image pasted!', 'success');
+                }
+            } else if (activeTab === 'editor') {
+                // Paste to main upload (or handle batch mode)
+                handleFiles([imageFile]);
+                showStatus('Image pasted!', 'success');
+            }
+        });
+
         // Gallery picker functions
         let galleryPickerFilter = null; // Currently selected collection filter
         let galleryPickerItems = []; // Filtered items for selection
@@ -6520,6 +6623,9 @@
                         </button>
                         <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
                             <span>🖼️</span> Select from Gallery
+                        </button>
+                        <button class="upload-option-btn" onclick="pasteToRef()">
+                            <span>📋</span> Paste from Clipboard
                         </button>
                     </div>
                 `;
@@ -6653,6 +6759,24 @@
             });
         }
 
+        // Handle clipboard paste for image uploads
+        async function handlePasteEvent(e, callback) {
+            const items = e.clipboardData?.items;
+            if (!items) return false;
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) {
+                        callback(file);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         async function handleFiles(files) {
             if (state.mode === 'batch') {
                 for (const file of Array.from(files)) {
@@ -6718,7 +6842,7 @@
             state.originalImage = null;
             uploadArea.innerHTML = `
                 <div class="upload-icon">🖼️</div>
-                <div class="upload-text"><strong>Drop an image to edit</strong><br>or click to upload</div>
+                <div class="upload-text"><strong>Drop, paste, or click</strong><br>to upload an image</div>
                 <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
                 <div class="upload-options-popup" id="mainUploadOptions">
                     <button class="upload-option-btn" onclick="triggerFileUpload('main')">
@@ -6788,6 +6912,9 @@
                             <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
                                 <span>🖼️</span> Select from Gallery
                             </button>
+                            <button class="upload-option-btn" onclick="pasteToRef()">
+                                <span>📋</span> Paste from Clipboard
+                            </button>
                         </div>
                     `;
                     showStatus('Reference image loaded!', 'success');
@@ -6809,6 +6936,9 @@
                     <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
                         <span>🖼️</span> Select from Gallery
                     </button>
+                    <button class="upload-option-btn" onclick="pasteToRef()">
+                        <span>📋</span> Paste from Clipboard
+                    </button>
                 </div>
             `;
             // Re-attach event listener to new file input
@@ -6829,6 +6959,9 @@
                                 </button>
                                 <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
                                     <span>🖼️</span> Select from Gallery
+                                </button>
+                                <button class="upload-option-btn" onclick="pasteToRef()">
+                                    <span>📋</span> Paste from Clipboard
                                 </button>
                             </div>
                         `;
@@ -9759,6 +9892,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             `<button onclick="setActiveProduct(null)">Deactivate</button>`
                         }
                         <button onclick="editProduct(${p.id})">Edit</button>
+                        <button onclick="duplicateProduct(${p.id})">Duplicate</button>
                         <button class="delete" onclick="deleteProduct(${p.id})">Delete</button>
                     </div>
                 </div>
@@ -9865,6 +9999,32 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function editProduct(id) {
             openProductModal(id);
+        }
+
+        function duplicateProduct(id) {
+            const original = state.products.find(p => p.id === id);
+            if (!original) return;
+
+            const duplicate = {
+                id: Date.now(),
+                name: `${original.name} (Copy)`,
+                description: original.description || '',
+                goldenPhrases: [...(original.goldenPhrases || [])],
+                forbiddenWords: [...(original.forbiddenWords || [])],
+                referenceImage: original.referenceImage || null
+            };
+
+            state.products.push(duplicate);
+
+            // Sync to cloud if signed in
+            if (currentUser) {
+                saveProductsToCloud();
+            }
+
+            Storage.setIfOffline('products', state.products);
+            renderProducts();
+            updateProductSelect();
+            showStatus(`Duplicated "${original.name}"`, 'success');
         }
 
         function deleteProduct(id) {
@@ -10755,7 +10915,7 @@ A bulleted list of what to explicitly AVOID:
 
             const selectedModel = modelSelect?.value || 'pro';
             const selectedProductId = productSelect?.value;
-            const selectedProduct = selectedProductId ? state.products.find(p => p.id == selectedProductId) : null;
+            const selectedProduct = selectedProductId ? state.products.find(p => String(p.id) === String(selectedProductId)) : null;
 
             // Get model config
             const modelConfig = promptGenModels[selectedModel];
@@ -10781,8 +10941,36 @@ A bulleted list of what to explicitly AVOID:
             rewriteEl.classList.remove('show');
 
             try {
-                // Build the analysis prompt
-                let analysisPrompt = `Analyze this image in comprehensive detail. Describe:
+                // Build the analysis prompt - different if product is selected
+                let analysisPrompt;
+
+                if (selectedProduct) {
+                    // Product-focused analysis - single prompt that analyzes AND creates product version
+                    analysisPrompt = `Analyze this image and create a prompt to recreate it with a specific product.
+
+STEP 1 - Briefly analyze these aspects of the image:
+- Composition and framing
+- Lighting (direction, quality, color temperature)
+- Color palette and mood
+- Background/environment
+- Overall style and atmosphere
+
+STEP 2 - Create an image generation prompt that recreates this EXACT visual concept but featuring this product:
+
+**PRODUCT:** ${selectedProduct.name}
+**Description:** ${selectedProduct.description || 'N/A'}
+${(selectedProduct.goldenPhrases || []).length ? `**Include these phrases:** "${selectedProduct.goldenPhrases.join('", "')}"` : ''}
+${(selectedProduct.forbiddenWords || []).length ? `**Never use:** ${selectedProduct.forbiddenWords.join(', ')}` : ''}
+
+Your response should have two sections:
+## Image Analysis
+(Brief analysis of the original image)
+
+## Product Prompt
+(A detailed 400-600 character prompt ready for image generation that features "${selectedProduct.name}" as the main subject, using the same composition, lighting, colors, and mood as the original)`;
+                } else {
+                    // Generic analysis - no product
+                    analysisPrompt = `Analyze this image in comprehensive detail. Describe:
 
 1. **Subject/Main Focus**: What is the primary subject? Describe it precisely.
 2. **Composition**: How is the image composed? Rule of thirds? Centered? Leading lines?
@@ -10794,6 +10982,7 @@ A bulleted list of what to explicitly AVOID:
 8. **Technical Details**: Apparent camera angle, depth of field, any post-processing effects.
 
 Be specific and detailed. This analysis will be used to recreate similar concepts.`;
+                }
 
                 const parts = [
                     {
@@ -10854,87 +11043,39 @@ Be specific and detailed. This analysis will be used to recreate similar concept
                 // Display the analysis
                 outputContent.textContent = analysisText;
                 outputEl.classList.add('show');
-                statusEl.textContent = 'Analysis complete!';
-                statusEl.className = 'status success';
 
-                // If a product is selected, generate a rewrite
+                // If a product was selected, extract the Product Prompt section for easy copying
                 if (selectedProduct) {
-                    statusEl.textContent = 'Generating product-specific prompt...';
-
-                    const rewritePrompt = `Based on this image analysis:
-
-${analysisText}
-
-Now create a detailed image generation prompt that recreates this EXACT concept, composition, lighting, and mood - but featuring this product instead:
-
-Product: ${selectedProduct.name}
-Description: ${selectedProduct.description || 'N/A'}
-${(selectedProduct.goldenPhrases || []).length ? `Must include these phrases naturally: "${selectedProduct.goldenPhrases.join('", "')}"` : ''}
-${(selectedProduct.forbiddenWords || []).length ? `Never use these words: ${selectedProduct.forbiddenWords.join(', ')}` : ''}
-
-Generate a single, detailed prompt (400-600 characters) that captures the essence of the original image but showcases the product. The prompt should be ready to use for image generation.
-
-Return ONLY the prompt, nothing else.`;
-
-                    const rewriteParts = [{ text: rewritePrompt }];
-
-                    // Add product reference image if available
-                    if (selectedProduct.referenceImage) {
-                        const productImageData = await getImageDataFromSource(selectedProduct.referenceImage);
-                        if (productImageData) {
-                            rewriteParts.unshift({
-                                inlineData: {
-                                    mimeType: productImageData.mimeType,
-                                    data: productImageData.base64Data
-                                }
-                            });
-                        }
-                    }
-
-                    const rewriteRequestBody = {
-                        contents: [{ role: 'user', parts: rewriteParts }],
-                        generationConfig: {
-                            temperature: 0.8,
-                            maxOutputTokens: 1024
-                        }
-                    };
-
-                    if (modelConfig.thinking) {
-                        rewriteRequestBody.generationConfig.thinkingConfig = {
-                            thinkingBudget: modelConfig.thinking === 'minimal' ? 1024 :
-                                           modelConfig.thinking === 'low' ? 4096 :
-                                           modelConfig.thinking === 'medium' ? 8192 :
-                                           modelConfig.thinking === 'high' ? 16384 : 4096
-                        };
-                    }
-
-                    const rewriteResponse = await fetch(`${modelConfig.endpoint}?key=${encodeURIComponent(apiKey)}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(rewriteRequestBody)
-                    });
-
-                    if (rewriteResponse.ok) {
-                        const rewriteData = await rewriteResponse.json();
-                        let rewriteText = '';
-
-                        if (rewriteData.candidates?.[0]?.content?.parts) {
-                            for (const part of rewriteData.candidates[0].content.parts) {
-                                if (part.text) {
-                                    rewriteText = part.text;
-                                }
+                    // Try to extract the Product Prompt section
+                    const promptMatch = analysisText.match(/##\s*Product Prompt\s*\n([\s\S]*?)(?:$|##)/i);
+                    if (promptMatch && promptMatch[1]) {
+                        rewriteContent.textContent = promptMatch[1].trim();
+                        rewriteEl.classList.add('show');
+                    } else {
+                        // If no specific section found, try to find any prompt-like content after analysis
+                        const lines = analysisText.split('\n');
+                        let promptStart = -1;
+                        for (let i = 0; i < lines.length; i++) {
+                            if (lines[i].toLowerCase().includes('product prompt') ||
+                                lines[i].toLowerCase().includes('image generation prompt') ||
+                                lines[i].toLowerCase().includes('prompt:')) {
+                                promptStart = i + 1;
+                                break;
                             }
                         }
-
-                        if (rewriteText) {
-                            rewriteContent.textContent = rewriteText.trim();
-                            rewriteEl.classList.add('show');
+                        if (promptStart > 0 && promptStart < lines.length) {
+                            const promptText = lines.slice(promptStart).join('\n').trim();
+                            if (promptText) {
+                                rewriteContent.textContent = promptText;
+                                rewriteEl.classList.add('show');
+                            }
                         }
                     }
-
                     statusEl.textContent = 'Analysis and product prompt complete!';
-                    statusEl.className = 'status success';
+                } else {
+                    statusEl.textContent = 'Analysis complete!';
                 }
+                statusEl.className = 'status success';
 
             } catch (error) {
                 console.error('Breakdown error:', error);
