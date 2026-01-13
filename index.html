@@ -2878,6 +2878,304 @@
             }
         }
 
+        /* ========== IMAGE BREAKDOWN TAB STYLES ========== */
+        .breakdown-section {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 28px;
+        }
+
+        .breakdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .breakdown-header h3 {
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .breakdown-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .breakdown-upload-area {
+            border: 2px dashed var(--border-medium);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: var(--bg-tertiary);
+        }
+
+        .breakdown-upload-area:hover {
+            border-color: var(--color-purple);
+            background: rgba(124, 58, 237, 0.05);
+        }
+
+        .breakdown-upload-area.dragover {
+            border-color: var(--color-purple);
+            background: rgba(124, 58, 237, 0.1);
+            transform: scale(1.01);
+        }
+
+        .breakdown-upload-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        .breakdown-upload-text {
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .breakdown-upload-hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .breakdown-image-preview {
+            display: none;
+            position: relative;
+            margin-bottom: 20px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: var(--bg-tertiary);
+        }
+
+        .breakdown-image-preview.show {
+            display: block;
+        }
+
+        .breakdown-image-preview img {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .breakdown-remove-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .breakdown-remove-btn:hover {
+            background: var(--color-red);
+            transform: scale(1.1);
+        }
+
+        .breakdown-model-select,
+        .breakdown-product-select {
+            margin-bottom: 20px;
+        }
+
+        .breakdown-model-select label,
+        .breakdown-product-select label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+        }
+
+        .breakdown-model-select select,
+        .breakdown-product-select select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+
+        .breakdown-model-select select optgroup,
+        .breakdown-product-select select optgroup {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .breakdown-model-select select option,
+        .breakdown-product-select select option {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 8px;
+        }
+
+        .breakdown-product-hint {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .breakdown-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .breakdown-buttons .submit-btn {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 1rem;
+        }
+
+        .breakdown-buttons .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .breakdown-output {
+            margin-top: 24px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+            border: 1px solid rgba(124, 58, 237, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            display: none;
+        }
+
+        .breakdown-output.show {
+            display: block;
+        }
+
+        .breakdown-output-header,
+        .breakdown-rewrite-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .breakdown-output-header h4,
+        .breakdown-rewrite-header h4 {
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .breakdown-output-header h4::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(135deg, #7c3aed, #06b6d4);
+            border-radius: 50%;
+        }
+
+        .breakdown-rewrite-header h4::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(135deg, #10b981, #f59e0b);
+            border-radius: 50%;
+        }
+
+        .breakdown-output-content,
+        .breakdown-rewrite-content {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: var(--text-highlight);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .breakdown-rewrite {
+            display: none;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .breakdown-rewrite.show {
+            display: block;
+        }
+
+        .use-prompt-btn {
+            margin-top: 16px;
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--color-green) 0%, var(--color-green-dark) 100%);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .use-prompt-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .copy-btn {
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--border-light);
+            color: var(--text-primary);
+        }
+
+        .copy-btn.copied {
+            background: var(--color-green);
+            border-color: var(--color-green);
+            color: #fff;
+        }
+
+        @media (max-width: 600px) {
+            .breakdown-section {
+                padding: 16px;
+            }
+            .breakdown-upload-area {
+                padding: 30px 16px;
+            }
+            .breakdown-output {
+                padding: 16px;
+            }
+        }
+
         /* ========== QUEUE PANEL STYLES ========== */
         .queue-panel {
             background: var(--bg-card);
@@ -4313,6 +4611,7 @@
             <button class="tab" data-tab="system">System Instructions</button>
             <button class="tab" data-tab="products">Products</button>
             <button class="tab" data-tab="promptgen">Prompt Generator</button>
+            <button class="tab" data-tab="breakdown">Image Breakdown</button>
         </div>
 
         <!-- Editor Tab -->
@@ -4727,6 +5026,93 @@
 
                 <!-- Generated Prompts -->
                 <div class="generated-prompts" id="generatedPrompts"></div>
+            </div>
+        </div>
+
+        <!-- Image Breakdown Tab -->
+        <div class="tab-content" id="tab-breakdown">
+            <div class="breakdown-section">
+                <div class="breakdown-header">
+                    <h3>Image Breakdown</h3>
+                    <span class="system-badge">Powered by Gemini</span>
+                </div>
+                <p class="breakdown-description">
+                    Upload any image and AI will describe exactly what's happening - composition, lighting, mood, subjects, and more. Perfect for analyzing ads, photos, or concepts you want to recreate.
+                </p>
+
+                <!-- Image Upload Area -->
+                <div class="breakdown-upload-area" id="breakdownUploadArea">
+                    <div class="breakdown-upload-content">
+                        <div class="breakdown-upload-icon">🖼️</div>
+                        <div class="breakdown-upload-text">Drop an image here or click to upload</div>
+                        <div class="breakdown-upload-hint">Supports JPG, PNG, WebP</div>
+                    </div>
+                    <input type="file" id="breakdownFileInput" class="hidden-input" accept="image/*">
+                </div>
+
+                <!-- Image Preview -->
+                <div class="breakdown-image-preview" id="breakdownImagePreview">
+                    <img id="breakdownPreviewImg" src="" alt="Preview">
+                    <button class="breakdown-remove-btn" id="breakdownRemoveBtn">&times;</button>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="breakdown-model-select">
+                    <label>Analysis Model</label>
+                    <select id="breakdownModelSelect">
+                        <optgroup label="Gemini 3 Pro">
+                            <option value="pro" selected>Gemini 3 Pro</option>
+                            <option value="pro-thinking-low">Gemini 3 Pro (Thinking - Low)</option>
+                            <option value="pro-thinking-high">Gemini 3 Pro (Thinking - High)</option>
+                        </optgroup>
+                        <optgroup label="Gemini 3 Flash">
+                            <option value="flash">Gemini 3 Flash</option>
+                            <option value="flash-thinking-minimal">Gemini 3 Flash (Thinking - Minimal)</option>
+                            <option value="flash-thinking-low">Gemini 3 Flash (Thinking - Low)</option>
+                            <option value="flash-thinking-medium">Gemini 3 Flash (Thinking - Medium)</option>
+                            <option value="flash-thinking-high">Gemini 3 Flash (Thinking - High)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Product Selection (Optional) -->
+                <div class="breakdown-product-select">
+                    <label>Rewrite for Product <span class="field-hint">(Optional)</span></label>
+                    <select id="breakdownProductSelect">
+                        <option value="">-- Just describe the image --</option>
+                    </select>
+                    <div class="breakdown-product-hint" id="breakdownProductHint">
+                        When a product is selected, AI will also generate a prompt to recreate this concept with your product.
+                    </div>
+                </div>
+
+                <!-- Analyze Button -->
+                <div class="breakdown-buttons">
+                    <button class="submit-btn" id="analyzeImageBtn" disabled>
+                        <span>Analyze Image</span>
+                    </button>
+                </div>
+                <div class="status" id="breakdownStatus"></div>
+
+                <!-- Analysis Output -->
+                <div class="breakdown-output" id="breakdownOutput">
+                    <div class="breakdown-output-header">
+                        <h4>Image Analysis</h4>
+                        <button class="copy-btn" id="copyBreakdownBtn">Copy</button>
+                    </div>
+                    <div class="breakdown-output-content" id="breakdownOutputContent"></div>
+                    <button class="use-prompt-btn" id="useAnalysisBtn">Use in Editor</button>
+
+                    <!-- Product Rewrite Section -->
+                    <div class="breakdown-rewrite" id="breakdownRewrite">
+                        <div class="breakdown-rewrite-header">
+                            <h4>Recreate with Your Product</h4>
+                            <button class="copy-btn" id="copyRewriteBtn">Copy</button>
+                        </div>
+                        <div class="breakdown-rewrite-content" id="breakdownRewriteContent"></div>
+                        <button class="use-prompt-btn" id="useRewriteBtn">Use in Editor</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -5953,7 +6339,11 @@
         enhanceBtn.addEventListener('click', async () => {
             const prompt = promptInput.value.trim();
             const apiKey = apiKeyInput.value.trim();
-            const product = state.products.find(p => p.id === state.activeProductId);
+
+            // Get product from editor dropdown directly, not global state
+            const editorProductSelect = $('editorProductSelect');
+            const selectedProductId = editorProductSelect?.value ? parseInt(editorProductSelect.value) : null;
+            const product = selectedProductId ? state.products.find(p => p.id === selectedProductId) : null;
 
             if (!prompt) { alert('Enter a prompt first'); return; }
             if (!apiKey) { alert('Enter API key first'); return; }
@@ -5962,10 +6352,15 @@
             enhanceBtn.textContent = '...';
 
             try {
+                // Get selected model from editor dropdown
+                const editorModelSelect = $('editorModelSelect');
+                const selectedModel = editorModelSelect?.value || 'flash';
+                const modelConfig = promptGenModels[selectedModel] || promptGenModels['flash'];
+
                 // Build request parts - include image if uploaded for better context
                 const parts = [];
 
-                // Build product context instructions if a product is selected
+                // Build product context instructions if a product is selected in the editor dropdown
                 let productInstructions = '';
                 if (product) {
                     productInstructions = `\n\nPRODUCT PROFILE REQUIREMENTS:
@@ -5998,15 +6393,39 @@
                     });
                 }
 
-                const response = await fetch(`${GEMINI_FLASH}?key=${encodeURIComponent(apiKey)}`, {
+                // Build request body with model config
+                const requestBody = {
+                    contents: [{ parts }]
+                };
+
+                // Add thinking config if the model supports it
+                if (modelConfig.thinking) {
+                    requestBody.generationConfig = {
+                        thinkingConfig: {
+                            thinkingBudget: modelConfig.thinking === 'minimal' ? 1024 :
+                                           modelConfig.thinking === 'low' ? 4096 :
+                                           modelConfig.thinking === 'medium' ? 8192 :
+                                           modelConfig.thinking === 'high' ? 16384 : 4096
+                        }
+                    };
+                }
+
+                const response = await fetch(`${modelConfig.endpoint}?key=${encodeURIComponent(apiKey)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts }]
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 const data = await response.json();
-                const enhanced = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                // Handle response (thinking models may have multiple parts)
+                let enhanced = '';
+                if (data.candidates?.[0]?.content?.parts) {
+                    for (const part of data.candidates[0].content.parts) {
+                        if (part.text) {
+                            enhanced = part.text;
+                        }
+                    }
+                }
                 if (enhanced) promptInput.value = enhanced.replace(/^["']|["']$/g, '');
             } catch (e) {
                 console.error('Enhance error:', e);
@@ -6024,7 +6443,11 @@
         megaPromptEditorBtn.addEventListener('click', async () => {
             const idea = promptInput.value.trim();
             const apiKey = apiKeyInput.value.trim();
-            const product = state.products.find(p => p.id === state.activeProductId);
+
+            // Get product from editor dropdown directly, not global state
+            const editorProductSelect = $('editorProductSelect');
+            const selectedProductId = editorProductSelect?.value ? parseInt(editorProductSelect.value) : null;
+            const product = selectedProductId ? state.products.find(p => p.id === selectedProductId) : null;
 
             if (!idea) { alert('Enter a prompt first'); return; }
             if (!apiKey) { alert('Enter API key first'); return; }
@@ -9632,6 +10055,364 @@ A bulleted list of what to explicitly AVOID:
         // Initialize Products and Prompt Generator on page load
         renderProducts();
         updateProductSelect();
+
+        // ========== IMAGE BREAKDOWN TAB ==========
+        let breakdownImageData = null;
+
+        // Update breakdown product select
+        function updateBreakdownProductSelect() {
+            const select = $('breakdownProductSelect');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">-- Just describe the image --</option>' +
+                state.products.map(p =>
+                    `<option value="${p.id}">${escapeHtml(p.name)}</option>`
+                ).join('');
+        }
+
+        // Initialize breakdown product select when products change
+        const originalRenderProductsForBreakdown = renderProducts;
+        renderProducts = function() {
+            originalRenderProductsForBreakdown();
+            updateBreakdownProductSelect();
+        };
+        updateBreakdownProductSelect();
+
+        // File upload handling
+        const breakdownUploadArea = $('breakdownUploadArea');
+        const breakdownFileInput = $('breakdownFileInput');
+        const breakdownImagePreview = $('breakdownImagePreview');
+        const breakdownPreviewImg = $('breakdownPreviewImg');
+        const breakdownRemoveBtn = $('breakdownRemoveBtn');
+        const analyzeImageBtn = $('analyzeImageBtn');
+
+        breakdownUploadArea?.addEventListener('click', () => breakdownFileInput?.click());
+
+        breakdownUploadArea?.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            breakdownUploadArea.classList.add('dragover');
+        });
+
+        breakdownUploadArea?.addEventListener('dragleave', () => {
+            breakdownUploadArea.classList.remove('dragover');
+        });
+
+        breakdownUploadArea?.addEventListener('drop', (e) => {
+            e.preventDefault();
+            breakdownUploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleBreakdownImage(file);
+            }
+        });
+
+        breakdownFileInput?.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleBreakdownImage(file);
+            }
+        });
+
+        function handleBreakdownImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64 = e.target.result;
+                breakdownPreviewImg.src = base64;
+                breakdownImagePreview.classList.add('show');
+                breakdownUploadArea.style.display = 'none';
+                analyzeImageBtn.disabled = false;
+
+                // Store image data for API call
+                breakdownImageData = {
+                    base64Data: base64.split(',')[1],
+                    mimeType: file.type
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        breakdownRemoveBtn?.addEventListener('click', () => {
+            breakdownPreviewImg.src = '';
+            breakdownImagePreview.classList.remove('show');
+            breakdownUploadArea.style.display = '';
+            analyzeImageBtn.disabled = true;
+            breakdownImageData = null;
+            breakdownFileInput.value = '';
+            $('breakdownOutput')?.classList.remove('show');
+            $('breakdownRewrite')?.classList.remove('show');
+        });
+
+        // Analyze button click
+        analyzeImageBtn?.addEventListener('click', async () => {
+            if (!breakdownImageData) return;
+
+            const modelSelect = $('breakdownModelSelect');
+            const productSelect = $('breakdownProductSelect');
+            const statusEl = $('breakdownStatus');
+            const outputEl = $('breakdownOutput');
+            const outputContent = $('breakdownOutputContent');
+            const rewriteEl = $('breakdownRewrite');
+            const rewriteContent = $('breakdownRewriteContent');
+
+            const selectedModel = modelSelect?.value || 'pro';
+            const selectedProductId = productSelect?.value;
+            const selectedProduct = selectedProductId ? state.products.find(p => p.id == selectedProductId) : null;
+
+            // Get model config
+            const modelConfig = promptGenModels[selectedModel];
+            if (!modelConfig) {
+                statusEl.textContent = 'Invalid model selected';
+                statusEl.className = 'status error';
+                return;
+            }
+
+            const apiKey = Storage.get('apiKey', '');
+            if (!apiKey) {
+                statusEl.textContent = 'Please set your Gemini API key in the Editor tab';
+                statusEl.className = 'status error';
+                return;
+            }
+
+            // Show loading state
+            analyzeImageBtn.disabled = true;
+            analyzeImageBtn.innerHTML = '<span class="loader"></span> Analyzing...';
+            statusEl.textContent = 'Analyzing image...';
+            statusEl.className = 'status';
+            outputEl.classList.remove('show');
+            rewriteEl.classList.remove('show');
+
+            try {
+                // Build the analysis prompt
+                let analysisPrompt = `Analyze this image in comprehensive detail. Describe:
+
+1. **Subject/Main Focus**: What is the primary subject? Describe it precisely.
+2. **Composition**: How is the image composed? Rule of thirds? Centered? Leading lines?
+3. **Lighting**: What type of lighting is used? Direction, quality (hard/soft), color temperature.
+4. **Color Palette**: What are the dominant colors? What mood do they create?
+5. **Background/Environment**: Describe the setting or backdrop.
+6. **Mood/Atmosphere**: What feeling does this image evoke?
+7. **Style**: Is it minimalist, dramatic, warm, clinical, lifestyle, editorial, etc.?
+8. **Technical Details**: Apparent camera angle, depth of field, any post-processing effects.
+
+Be specific and detailed. This analysis will be used to recreate similar concepts.`;
+
+                const parts = [
+                    {
+                        inlineData: {
+                            mimeType: breakdownImageData.mimeType,
+                            data: breakdownImageData.base64Data
+                        }
+                    },
+                    { text: analysisPrompt }
+                ];
+
+                // Build request body
+                const requestBody = {
+                    contents: [{ role: 'user', parts }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 8192
+                    }
+                };
+
+                // Add thinking config if needed
+                if (modelConfig.thinking) {
+                    requestBody.generationConfig.thinkingConfig = {
+                        thinkingBudget: modelConfig.thinking === 'minimal' ? 1024 :
+                                       modelConfig.thinking === 'low' ? 4096 :
+                                       modelConfig.thinking === 'medium' ? 8192 :
+                                       modelConfig.thinking === 'high' ? 16384 : 4096
+                    };
+                }
+
+                const response = await fetch(`${modelConfig.endpoint}?key=${encodeURIComponent(apiKey)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'API request failed');
+                }
+
+                const data = await response.json();
+                let analysisText = '';
+
+                // Extract text from response (handle thinking models)
+                if (data.candidates?.[0]?.content?.parts) {
+                    for (const part of data.candidates[0].content.parts) {
+                        if (part.text) {
+                            analysisText = part.text;
+                        }
+                    }
+                }
+
+                if (!analysisText) {
+                    throw new Error('No analysis generated');
+                }
+
+                // Display the analysis
+                outputContent.textContent = analysisText;
+                outputEl.classList.add('show');
+                statusEl.textContent = 'Analysis complete!';
+                statusEl.className = 'status success';
+
+                // If a product is selected, generate a rewrite
+                if (selectedProduct) {
+                    statusEl.textContent = 'Generating product-specific prompt...';
+
+                    const rewritePrompt = `Based on this image analysis:
+
+${analysisText}
+
+Now create a detailed image generation prompt that recreates this EXACT concept, composition, lighting, and mood - but featuring this product instead:
+
+Product: ${selectedProduct.name}
+Description: ${selectedProduct.description || 'N/A'}
+${(selectedProduct.goldenPhrases || []).length ? `Must include these phrases naturally: "${selectedProduct.goldenPhrases.join('", "')}"` : ''}
+${(selectedProduct.forbiddenWords || []).length ? `Never use these words: ${selectedProduct.forbiddenWords.join(', ')}` : ''}
+
+Generate a single, detailed prompt (400-600 characters) that captures the essence of the original image but showcases the product. The prompt should be ready to use for image generation.
+
+Return ONLY the prompt, nothing else.`;
+
+                    const rewriteParts = [{ text: rewritePrompt }];
+
+                    // Add product reference image if available
+                    if (selectedProduct.referenceImage) {
+                        const productImageData = await getImageDataFromSource(selectedProduct.referenceImage);
+                        if (productImageData) {
+                            rewriteParts.unshift({
+                                inlineData: {
+                                    mimeType: productImageData.mimeType,
+                                    data: productImageData.base64Data
+                                }
+                            });
+                        }
+                    }
+
+                    const rewriteRequestBody = {
+                        contents: [{ role: 'user', parts: rewriteParts }],
+                        generationConfig: {
+                            temperature: 0.8,
+                            maxOutputTokens: 1024
+                        }
+                    };
+
+                    if (modelConfig.thinking) {
+                        rewriteRequestBody.generationConfig.thinkingConfig = {
+                            thinkingBudget: modelConfig.thinking === 'minimal' ? 1024 :
+                                           modelConfig.thinking === 'low' ? 4096 :
+                                           modelConfig.thinking === 'medium' ? 8192 :
+                                           modelConfig.thinking === 'high' ? 16384 : 4096
+                        };
+                    }
+
+                    const rewriteResponse = await fetch(`${modelConfig.endpoint}?key=${encodeURIComponent(apiKey)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(rewriteRequestBody)
+                    });
+
+                    if (rewriteResponse.ok) {
+                        const rewriteData = await rewriteResponse.json();
+                        let rewriteText = '';
+
+                        if (rewriteData.candidates?.[0]?.content?.parts) {
+                            for (const part of rewriteData.candidates[0].content.parts) {
+                                if (part.text) {
+                                    rewriteText = part.text;
+                                }
+                            }
+                        }
+
+                        if (rewriteText) {
+                            rewriteContent.textContent = rewriteText.trim();
+                            rewriteEl.classList.add('show');
+                        }
+                    }
+
+                    statusEl.textContent = 'Analysis and product prompt complete!';
+                    statusEl.className = 'status success';
+                }
+
+            } catch (error) {
+                console.error('Breakdown error:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.className = 'status error';
+            } finally {
+                analyzeImageBtn.disabled = false;
+                analyzeImageBtn.innerHTML = '<span>Analyze Image</span>';
+            }
+        });
+
+        // Copy buttons
+        $('copyBreakdownBtn')?.addEventListener('click', async () => {
+            const content = $('breakdownOutputContent')?.textContent;
+            if (content) {
+                await navigator.clipboard.writeText(content);
+                const btn = $('copyBreakdownBtn');
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            }
+        });
+
+        $('copyRewriteBtn')?.addEventListener('click', async () => {
+            const content = $('breakdownRewriteContent')?.textContent;
+            if (content) {
+                await navigator.clipboard.writeText(content);
+                const btn = $('copyRewriteBtn');
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            }
+        });
+
+        // Use in Editor button (for product rewrite)
+        $('useRewriteBtn')?.addEventListener('click', () => {
+            const content = $('breakdownRewriteContent')?.textContent;
+            if (content) {
+                // Switch to editor tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                document.querySelector('.tab[data-tab="editor"]')?.classList.add('active');
+                $('tab-editor')?.classList.add('active');
+
+                // Set the prompt
+                const promptInput = $('promptInput');
+                if (promptInput) {
+                    promptInput.value = content.trim();
+                    promptInput.focus();
+                }
+            }
+        });
+
+        // Use in Editor button (for image analysis)
+        $('useAnalysisBtn')?.addEventListener('click', () => {
+            const content = $('breakdownOutputContent')?.textContent;
+            if (content) {
+                // Switch to editor tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                document.querySelector('.tab[data-tab="editor"]')?.classList.add('active');
+                $('tab-editor')?.classList.add('active');
+
+                // Set the prompt
+                const promptInput = $('promptInput');
+                if (promptInput) {
+                    promptInput.value = content.trim();
+                    promptInput.focus();
+                }
+            }
+        });
 
         // ========== LASSO SELECTION TOOL ==========
         const lassoModal = $('lassoModal');
