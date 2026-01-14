@@ -8889,28 +8889,50 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
-        function convertImageToBlob(dataUrl, format, quality) {
+        function convertImageToBlob(imageSrc, format, quality) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
+
+                // Set crossOrigin for Firebase URLs to allow canvas access
+                if (!imageSrc.startsWith('data:')) {
+                    img.crossOrigin = 'anonymous';
+                }
+
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
 
-                    let mimeType = 'image/png';
-                    if (format === 'jpeg') mimeType = 'image/jpeg';
-                    if (format === 'webp') mimeType = 'image/webp';
+                        let mimeType = 'image/png';
+                        if (format === 'jpeg') mimeType = 'image/jpeg';
+                        if (format === 'webp') mimeType = 'image/webp';
 
-                    canvas.toBlob(
-                        (blob) => resolve(blob),
-                        mimeType,
-                        format === 'png' ? 1 : quality
-                    );
+                        canvas.toBlob(
+                            (blob) => {
+                                if (blob) {
+                                    resolve(blob);
+                                } else {
+                                    reject(new Error('Failed to create blob'));
+                                }
+                            },
+                            mimeType,
+                            format === 'png' ? 1 : quality
+                        );
+                    } catch (err) {
+                        reject(err);
+                    }
                 };
-                img.onerror = reject;
-                img.src = dataUrl;
+                img.onerror = () => reject(new Error('Failed to load image'));
+
+                // Add cache buster for Firebase URLs to avoid stale responses
+                if (!imageSrc.startsWith('data:')) {
+                    img.src = imageSrc + (imageSrc.includes('?') ? '&' : '?') + 't=' + Date.now();
+                } else {
+                    img.src = imageSrc;
+                }
             });
         }
 
