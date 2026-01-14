@@ -5215,7 +5215,7 @@
 
                 <!-- Image Preview -->
                 <div class="breakdown-image-preview" id="breakdownImagePreview">
-                    <img id="breakdownPreviewImg" src="" alt="Preview">
+                    <img id="breakdownPreviewImg" src="" alt="Preview" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
                     <button class="breakdown-remove-btn" id="breakdownRemoveBtn">&times;</button>
                 </div>
 
@@ -6405,6 +6405,18 @@
             }
         });
 
+        // Preview image click handler (event delegation)
+        document.addEventListener('click', (e) => {
+            const previewImg = e.target.closest('.preview-image');
+            if (previewImg) {
+                e.stopPropagation();
+                const src = previewImg.src;
+                if (src) {
+                    openLightbox([{ src }], 0, 'preview');
+                }
+            }
+        });
+
         // Trigger file upload from popup
         function triggerFileUpload(target) {
             if (target === 'main') {
@@ -6431,7 +6443,7 @@
                             state.referenceImage = result.dataUrl;
                             state.referenceImageBase64 = result.base64;
                             refUploadArea.innerHTML = `
-                                <img src="${state.referenceImage}" alt="Reference">
+                                <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
                                 <button class="clear-btn" onclick="clearRef(event)">Clear</button>
                                 <div class="upload-options-popup" id="refUploadOptions">
                                     <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
@@ -6485,7 +6497,7 @@
                 const result = await processImageFile(imageFile);
                 if (result) {
                     const uploadArea = $('productImageUpload');
-                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference">`;
+                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">`;
                     uploadArea.dataset.imageData = result.dataUrl;
                     showStatus('Image pasted to product!', 'success');
                 }
@@ -6635,7 +6647,7 @@
                     }
                 }
                 refUploadArea.innerHTML = `
-                    <img src="${state.referenceImage}" alt="Reference">
+                    <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
                     <button class="clear-btn" onclick="clearRef(event)">Clear</button>
                     <div class="upload-options-popup" id="refUploadOptions">
                         <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
@@ -6842,7 +6854,7 @@
 
         function displayUploadedImage(src) {
             uploadArea.innerHTML = `
-                <img src="${src}" alt="Uploaded">
+                <img src="${src}" alt="Uploaded" class="preview-image" data-preview="main" style="cursor: zoom-in;" title="Click to preview">
                 <button class="clear-btn" onclick="clearImage(event)">Clear</button>
                 <div class="upload-options-popup" id="mainUploadOptions">
                     <button class="upload-option-btn" onclick="triggerFileUpload('main')">
@@ -6923,7 +6935,7 @@
                     state.referenceImage = result.dataUrl;
                     state.referenceImageBase64 = result.base64;
                     refUploadArea.innerHTML = `
-                        <img src="${state.referenceImage}" alt="Reference">
+                        <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
                         <button class="clear-btn" onclick="clearRef(event)">Clear</button>
                         <div class="upload-options-popup" id="refUploadOptions">
                             <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
@@ -6971,7 +6983,7 @@
                         state.referenceImage = result.dataUrl;
                         state.referenceImageBase64 = result.base64;
                         refUploadArea.innerHTML = `
-                            <img src="${state.referenceImage}" alt="Reference">
+                            <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
                             <button class="clear-btn" onclick="clearRef(event)">Clear</button>
                             <div class="upload-options-popup" id="refUploadOptions">
                                 <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
@@ -9268,6 +9280,13 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             document.body.style.overflow = 'hidden';
         }
 
+        // Preview a single image in lightbox
+        function previewImage(src, e) {
+            if (e) e.stopPropagation();
+            if (!src) return;
+            openLightbox([{ src }], 0, 'preview');
+        }
+
         function closeLightbox() {
             $('lightbox').classList.remove('active');
             document.body.style.overflow = '';
@@ -9960,7 +9979,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             // Reset image upload
             const uploadArea = $('productImageUpload');
             if (product?.referenceImage) {
-                uploadArea.innerHTML = `<img src="${product.referenceImage}" alt="Reference">`;
+                uploadArea.innerHTML = `<img src="${product.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">`;
             } else {
                 uploadArea.innerHTML = '<span>Click to upload reference image</span>';
             }
@@ -10112,7 +10131,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 const result = await processImageFile(file);
                 if (result) {
                     const uploadArea = $('productImageUpload');
-                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference">`;
+                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">`;
                     // Store temporarily for saving
                     uploadArea.dataset.imageData = result.dataUrl;
                     showStatus('Product image loaded!', 'success');
