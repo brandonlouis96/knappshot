@@ -6592,7 +6592,7 @@
             galleryPickerFilter = null;
         }
 
-        function selectFromGalleryPicker(index) {
+        async function selectFromGalleryPicker(index) {
             const item = galleryPickerItems[index];
             if (!item) return;
 
@@ -6604,15 +6604,35 @@
                     const mimeMatch = item.src.match(/^data:([^;]+);/);
                     state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
                     state.currentImageBase64 = item.src.split(',')[1];
+                    console.log('Gallery selection: Data URL, base64 length:', state.currentImageBase64?.length);
                 } else {
-                    state.currentImageMimeType = 'image/jpeg';
-                    state.currentImageBase64 = null;
+                    // Firebase URL - need to convert to base64
+                    console.log('Gallery selection: Firebase URL detected, converting to base64...');
+                    showStatus('Loading image...', 'info');
+                    const imageData = await getImageDataFromSource(item.src);
+                    if (imageData) {
+                        state.currentImageMimeType = imageData.mimeType;
+                        state.currentImageBase64 = imageData.base64Data;
+                        console.log('Gallery selection: Converted to base64, length:', state.currentImageBase64?.length);
+                        showStatus('Image loaded!', 'success');
+                    } else {
+                        console.error('Gallery selection: Failed to convert Firebase URL to base64');
+                        state.currentImageMimeType = 'image/jpeg';
+                        state.currentImageBase64 = null;
+                        showStatus('Warning: Could not process image for editing', 'error');
+                    }
                 }
                 displayUploadedImage(item.src);
             } else if (currentUploadTarget === 'ref') {
                 state.referenceImage = item.src;
                 if (item.src.startsWith('data:')) {
                     state.referenceImageBase64 = item.src.split(',')[1];
+                } else {
+                    // Firebase URL - convert to base64
+                    const imageData = await getImageDataFromSource(item.src);
+                    if (imageData) {
+                        state.referenceImageBase64 = imageData.base64Data;
+                    }
                 }
                 refUploadArea.innerHTML = `
                     <img src="${state.referenceImage}" alt="Reference">
@@ -7048,7 +7068,9 @@
                     productInstructions += `\n\nThe enhanced prompt must follow these product requirements exactly.`;
                 }
 
+                console.log('Enhance: currentImageBase64 exists?', !!state.currentImageBase64, 'length:', state.currentImageBase64?.length);
                 if (state.currentImageBase64) {
+                    console.log('Enhance: Adding image to request, mime:', state.currentImageMimeType);
                     // Include the uploaded image so AI can understand what's in it
                     parts.push({
                         inlineData: {
@@ -9033,6 +9055,10 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             const imagesToProcess = state.mode === 'batch' ? state.batchImages :
                 (state.currentImageBase64 ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }] : []);
+
+            console.log('Generate: Mode:', state.mode);
+            console.log('Generate: currentImageBase64 exists?', !!state.currentImageBase64, 'length:', state.currentImageBase64?.length);
+            console.log('Generate: imagesToProcess count:', imagesToProcess.length);
 
             // Allow text-to-image generation without an input image (single mode only)
             const isTextToImage = imagesToProcess.length === 0 && state.mode === 'single';
