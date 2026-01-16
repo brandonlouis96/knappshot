@@ -668,16 +668,120 @@
         .prompt-section textarea {
             width: 100%; padding: 16px;
             border: 1px solid var(--border-light);
-            border-radius: 14px; background: var(--bg-tertiary);
+            border-radius: 14px; background: transparent;
             color: var(--text-primary); font-size: 0.95rem;
-            resize: vertical; min-height: 90px; max-height: 500px;
+            resize: none; min-height: 90px; max-height: 500px;
             font-family: inherit; line-height: 1.6;
             transition: all 0.3s ease;
             white-space: pre-wrap;
             overflow-y: auto;
+            position: relative;
+            z-index: 2;
         }
         .prompt-section textarea:focus { outline: none; border-color: var(--color-purple); }
         .prompt-section textarea::placeholder { color: var(--text-muted); }
+
+        /* Highlight backdrop for @mentions */
+        .prompt-highlight-backdrop {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding: 16px;
+            border: 1px solid transparent;
+            border-radius: 14px;
+            background: var(--bg-tertiary);
+            font-size: 0.95rem;
+            font-family: inherit;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 1;
+            color: transparent;
+        }
+        .prompt-highlight-backdrop .mention-highlight {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(168, 85, 247, 0.3));
+            color: transparent;
+            border-radius: 4px;
+            padding: 1px 0;
+        }
+
+        /* @ Mention Dropdown */
+        .mention-dropdown {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 16px;
+            width: 280px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+        .mention-dropdown.active { display: block; }
+        .mention-dropdown-header {
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--bg-tertiary);
+        }
+        .mention-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .mention-item:hover, .mention-item.selected {
+            background: var(--color-purple-transparent);
+        }
+        .mention-item-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            overflow: hidden;
+        }
+        .mention-item-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .mention-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .mention-item-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .mention-item-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .mention-tag {
+            background: linear-gradient(135deg, var(--color-purple), var(--color-purple-light));
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
 
         .prompt-actions {
             display: flex;
@@ -4875,7 +4979,13 @@
             <!-- Prompt Section -->
             <div class="prompt-section">
                 <div class="prompt-wrapper">
-                    <textarea id="promptInput" placeholder="Describe the edits you want..."></textarea>
+                    <div class="prompt-highlight-backdrop" id="promptHighlightBackdrop"></div>
+                    <textarea id="promptInput" placeholder="Describe the edits you want... (Type @ to reference images)"></textarea>
+                    <!-- @ Mention Dropdown -->
+                    <div class="mention-dropdown" id="mentionDropdown">
+                        <div class="mention-dropdown-header">Reference an image</div>
+                        <div class="mention-dropdown-items" id="mentionDropdownItems"></div>
+                    </div>
                 </div>
                 <div class="prompt-actions-row">
                     <div class="prompt-model-select">
@@ -5640,6 +5750,172 @@
         // Auto-resize on input, paste, and initial load
         promptInput.addEventListener('input', autoResizePromptInput);
         promptInput.addEventListener('paste', () => setTimeout(autoResizePromptInput, 0));
+
+        // ========== @ MENTION SYSTEM ==========
+        const mentionDropdown = $('mentionDropdown');
+        const mentionDropdownItems = $('mentionDropdownItems');
+        const promptHighlightBackdrop = $('promptHighlightBackdrop');
+        let mentionStartIndex = -1;
+        let selectedMentionIndex = 0;
+
+        // Update highlight backdrop to show @mentions in purple
+        function updateMentionHighlights() {
+            const text = promptInput.value;
+            // Escape HTML and highlight @mentions
+            const escaped = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/(@main-image|@reference)/g, '<span class="mention-highlight">$1</span>');
+            // Add a trailing space to match textarea line height
+            promptHighlightBackdrop.innerHTML = escaped + '\n';
+            // Sync scroll position
+            promptHighlightBackdrop.scrollTop = promptInput.scrollTop;
+        }
+
+        // Sync backdrop with textarea
+        promptInput.addEventListener('input', updateMentionHighlights);
+        promptInput.addEventListener('scroll', () => {
+            promptHighlightBackdrop.scrollTop = promptInput.scrollTop;
+        });
+
+        function getAvailableImages() {
+            const images = [];
+            if (state.currentImage) {
+                images.push({
+                    id: 'main-image',
+                    name: 'Main Image',
+                    desc: 'The uploaded image to edit',
+                    icon: state.currentImage,
+                    tag: '@main-image'
+                });
+            }
+            if (state.referenceImage) {
+                images.push({
+                    id: 'reference-image',
+                    name: 'Reference Image',
+                    desc: 'Style reference image',
+                    icon: state.referenceImage,
+                    tag: '@reference'
+                });
+            }
+            return images;
+        }
+
+        function showMentionDropdown() {
+            const images = getAvailableImages();
+            if (images.length === 0) {
+                hideMentionDropdown();
+                return;
+            }
+
+            selectedMentionIndex = 0;
+            mentionDropdownItems.innerHTML = images.map((img, i) => `
+                <div class="mention-item ${i === 0 ? 'selected' : ''}" data-index="${i}" data-tag="${img.tag}">
+                    <div class="mention-item-icon">
+                        <img src="${img.icon}" alt="${img.name}">
+                    </div>
+                    <div class="mention-item-info">
+                        <div class="mention-item-name">${img.name}</div>
+                        <div class="mention-item-desc">${img.desc}</div>
+                    </div>
+                    <span class="mention-tag">${img.tag}</span>
+                </div>
+            `).join('');
+
+            mentionDropdown.classList.add('active');
+        }
+
+        function hideMentionDropdown() {
+            mentionDropdown.classList.remove('active');
+            mentionStartIndex = -1;
+        }
+
+        function insertMention(tag) {
+            const text = promptInput.value;
+            const before = text.substring(0, mentionStartIndex);
+            const after = text.substring(promptInput.selectionStart);
+            promptInput.value = before + tag + ' ' + after;
+            promptInput.selectionStart = promptInput.selectionEnd = mentionStartIndex + tag.length + 1;
+            promptInput.focus();
+            hideMentionDropdown();
+            autoResizePromptInput();
+            updateMentionHighlights();
+        }
+
+        function updateMentionSelection(newIndex) {
+            const items = mentionDropdownItems.querySelectorAll('.mention-item');
+            if (items.length === 0) return;
+
+            selectedMentionIndex = Math.max(0, Math.min(newIndex, items.length - 1));
+            items.forEach((item, i) => {
+                item.classList.toggle('selected', i === selectedMentionIndex);
+            });
+        }
+
+        // Listen for @ symbol in prompt input
+        promptInput.addEventListener('input', (e) => {
+            const text = promptInput.value;
+            const cursorPos = promptInput.selectionStart;
+
+            // Check if we just typed @
+            if (text[cursorPos - 1] === '@') {
+                // Make sure it's at the start or after a space
+                if (cursorPos === 1 || text[cursorPos - 2] === ' ' || text[cursorPos - 2] === '\n') {
+                    mentionStartIndex = cursorPos - 1;
+                    showMentionDropdown();
+                    return;
+                }
+            }
+
+            // If dropdown is open, check if we should close it
+            if (mentionDropdown.classList.contains('active')) {
+                // Close if we deleted the @
+                if (mentionStartIndex >= cursorPos || text[mentionStartIndex] !== '@') {
+                    hideMentionDropdown();
+                }
+            }
+        });
+
+        // Handle keyboard navigation in mention dropdown
+        promptInput.addEventListener('keydown', (e) => {
+            if (!mentionDropdown.classList.contains('active')) return;
+
+            const items = mentionDropdownItems.querySelectorAll('.mention-item');
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                updateMentionSelection(selectedMentionIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                updateMentionSelection(selectedMentionIndex - 1);
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                const selectedItem = items[selectedMentionIndex];
+                if (selectedItem) {
+                    insertMention(selectedItem.dataset.tag);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                hideMentionDropdown();
+            }
+        });
+
+        // Handle click on mention items
+        mentionDropdownItems.addEventListener('click', (e) => {
+            const item = e.target.closest('.mention-item');
+            if (item) {
+                insertMention(item.dataset.tag);
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.prompt-wrapper')) {
+                hideMentionDropdown();
+            }
+        });
 
         // Load saved config (API key only - endpoint is now a preset dropdown)
         apiKeyInput.value = Storage.get('apiKey', '');
@@ -7776,10 +8052,27 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         '4K': '4096x4096 pixels'
                     };
 
-                    let fullPrompt = item.prompt;
+                    let fullPrompt = '';
                     if (systemInstructions) {
-                        fullPrompt = `[System Instructions: ${systemInstructions}]\n\n${fullPrompt}`;
+                        fullPrompt = `[System Instructions: ${systemInstructions}]\n\n`;
                     }
+
+                    // Add @ mention context only if mentions are used in the prompt
+                    const hasMentions = item.prompt.includes('@main-image') || item.prompt.includes('@reference');
+                    if (hasMentions) {
+                        let mentionContext = '[Image References: ';
+                        const contextParts = [];
+                        if (item.prompt.includes('@main-image')) {
+                            contextParts.push('@main-image refers to the first/main uploaded image');
+                        }
+                        if (item.prompt.includes('@reference')) {
+                            contextParts.push('@reference refers to the style reference image (second image)');
+                        }
+                        mentionContext += contextParts.join('; ') + ']\n\n';
+                        fullPrompt += mentionContext;
+                    }
+
+                    fullPrompt += item.prompt;
                     fullPrompt += `\n\nAspect ratio: ${aspectMap[state.selectedAspectRatio] || 'square (1:1)'}`;
                     fullPrompt += `\nResolution: ${resolutionMap[state.selectedResolution] || '1024x1024 pixels'}`;
 
@@ -9144,8 +9437,24 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (systemInstructions) {
                 fullPrompt = `[System Instructions: ${systemInstructions}] `;
             }
+
+            // Add @ mention context only if mentions are used in the prompt
+            const hasMentions = prompt.includes('@main-image') || prompt.includes('@reference');
+            if (hasMentions) {
+                let mentionContext = '[Image References: ';
+                const contextParts = [];
+                if (prompt.includes('@main-image')) {
+                    contextParts.push('@main-image refers to the first/main uploaded image');
+                }
+                if (prompt.includes('@reference')) {
+                    contextParts.push('@reference refers to the style reference image (second image)');
+                }
+                mentionContext += contextParts.join('; ') + '] ';
+                fullPrompt += mentionContext;
+            }
+
             fullPrompt += prompt;
-            if (state.referenceImageBase64) fullPrompt += '. Match the style of the reference image provided.';
+            if (state.referenceImageBase64 && !hasMentions) fullPrompt += '. Match the style of the reference image provided.';
             fullPrompt += `. Output in ${aspectMap[state.selectedAspectRatio]} at ${resMap[state.selectedResolution]}.`;
 
             const allImages = [];
