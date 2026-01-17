@@ -5061,6 +5061,9 @@
                         <button class="option-btn aspect-btn" data-value="3:4">3:4
                             <div class="aspect-tooltip"><div class="aspect-preview" style="width: 33px; height: 44px;"></div><span>Portrait</span></div>
                         </button>
+                        <button class="option-btn aspect-btn" data-value="4:5">4:5
+                            <div class="aspect-tooltip"><div class="aspect-preview" style="width: 36px; height: 45px;"></div><span>Instagram</span></div>
+                        </button>
                         <button class="option-btn aspect-btn" data-value="3:2">3:2
                             <div class="aspect-tooltip"><div class="aspect-preview" style="width: 45px; height: 30px;"></div><span>Landscape</span></div>
                         </button>
@@ -7469,6 +7472,7 @@
                 '9:16': 'Vertical (9:16) - ideal for mobile, stories, reels',
                 '4:3': 'Landscape (4:3) - traditional photography',
                 '3:4': 'Portrait (3:4) - portraits, Pinterest',
+                '4:5': 'Portrait (4:5) - ideal for Instagram posts',
                 '3:2': 'Landscape (3:2) - DSLR photography',
                 '2:3': 'Portrait (2:3) - magazine covers, posters'
             };
@@ -8043,6 +8047,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         '9:16': 'portrait (9:16)',
                         '4:3': 'landscape (4:3)',
                         '3:4': 'portrait (3:4)',
+                        '4:5': 'portrait (4:5)',
                         '3:2': 'landscape (3:2)',
                         '2:3': 'portrait (2:3)'
                     };
@@ -9452,7 +9457,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 </div>
             `;
 
-            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)' };
+            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)' };
             const resMap = { '1K': '1024px', '2K': '2048px', '4K': '4096px' };
 
             // Build full prompt with system instructions
