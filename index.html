@@ -9012,14 +9012,38 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             openLightbox(images, index, 'gallery');
         }
 
-        function loadFromGallery(index) {
+        async function loadFromGallery(index) {
             const item = state.gallery[index];
             if (item) {
                 state.currentImage = item.src;
-                state.currentImageBase64 = item.src.split(',')[1];
+                state.originalImage = item.src;
                 promptInput.value = item.prompt || '';
                 displayUploadedImage(item.src);
                 document.querySelector('[data-tab="editor"]').click();
+
+                // Handle base64 extraction properly for both data URLs and Firebase URLs
+                if (item.src.startsWith('data:')) {
+                    const mimeMatch = item.src.match(/^data:([^;]+);/);
+                    state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    state.currentImageBase64 = item.src.split(',')[1];
+                    console.log('loadFromGallery: Data URL, base64 length:', state.currentImageBase64?.length);
+                } else {
+                    // Firebase URL - convert to base64
+                    console.log('loadFromGallery: Firebase URL detected, converting to base64...');
+                    showStatus('Loading image...', 'info');
+                    const imageData = await getImageDataFromSource(item.src);
+                    if (imageData) {
+                        state.currentImageMimeType = imageData.mimeType;
+                        state.currentImageBase64 = imageData.base64Data;
+                        console.log('loadFromGallery: Converted to base64, length:', state.currentImageBase64?.length);
+                        showStatus('Image loaded!', 'success');
+                    } else {
+                        console.error('loadFromGallery: Failed to convert Firebase URL to base64');
+                        state.currentImageMimeType = 'image/jpeg';
+                        state.currentImageBase64 = null;
+                        showStatus('Warning: Could not process image for editing', 'error');
+                    }
+                }
             }
         }
 
@@ -9682,13 +9706,12 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             showStatus('Download started!', 'success');
         }
 
-        function editFromLightbox() {
+        async function editFromLightbox() {
             const img = lightboxImages[lightboxIndex];
             const src = img.src || img;
 
             state.currentImage = src;
-            state.currentImageBase64 = src.split(',')[1];
-            state.currentImageMimeType = 'image/png';
+            state.originalImage = src;
 
             // If from gallery, also load the prompt
             if (lightboxSource === 'gallery' && state.currentGalleryItems[lightboxIndex]) {
@@ -9698,7 +9721,31 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             displayUploadedImage(src);
             closeLightbox();
             document.querySelector('[data-tab="editor"]').click();
-            showStatus('Image loaded for editing!', 'success');
+
+            // Handle base64 extraction properly for both data URLs and Firebase URLs
+            if (src.startsWith('data:')) {
+                const mimeMatch = src.match(/^data:([^;]+);/);
+                state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+                state.currentImageBase64 = src.split(',')[1];
+                console.log('editFromLightbox: Data URL, base64 length:', state.currentImageBase64?.length);
+                showStatus('Image loaded for editing!', 'success');
+            } else {
+                // Firebase URL - convert to base64
+                console.log('editFromLightbox: Firebase URL detected, converting to base64...');
+                showStatus('Loading image...', 'info');
+                const imageData = await getImageDataFromSource(src);
+                if (imageData) {
+                    state.currentImageMimeType = imageData.mimeType;
+                    state.currentImageBase64 = imageData.base64Data;
+                    console.log('editFromLightbox: Converted to base64, length:', state.currentImageBase64?.length);
+                    showStatus('Image loaded for editing!', 'success');
+                } else {
+                    console.error('editFromLightbox: Failed to convert Firebase URL to base64');
+                    state.currentImageMimeType = 'image/jpeg';
+                    state.currentImageBase64 = null;
+                    showStatus('Warning: Could not process image for editing', 'error');
+                }
+            }
         }
 
         // Close lightbox when clicking outside image
