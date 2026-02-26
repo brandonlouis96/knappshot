@@ -8654,7 +8654,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
 
                 const batchData = await response.json();
-                console.log('Batch submission response:', JSON.stringify(batchData, null, 2));
 
                 const job = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -8666,6 +8665,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     requestCount: inlineRequests.length,
                     resultsProcessed: false,
                     prompt: prompt,
+                    model: modelId,
                     error: null
                 };
 
@@ -8719,9 +8719,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 return;
             }
 
-            console.log(`Polling ${activeJobs.length} active batch job(s)...`);
             for (const job of activeJobs) {
-                console.log(`  Polling job: ${job.batchName} (status: ${job.status})`);
                 // Auto-timeout jobs older than 25 hours
                 if (Date.now() - job.createdAt > 25 * 60 * 60 * 1000) {
                     job.status = 'JOB_STATE_FAILED';
@@ -8746,6 +8744,12 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     // The response is an Operation object with metadata.state
                     const batchMeta = opData.metadata || {};
                     const newStatus = batchMeta.state || (opData.done ? 'JOB_STATE_SUCCEEDED' : job.status);
+
+                    // Backfill model if not saved
+                    if (!job.model && batchMeta.model) {
+                        job.model = batchMeta.model;
+                        saveBatchJobs();
+                    }
 
                     if (newStatus !== job.status) {
                         job.status = newStatus;
@@ -8777,12 +8781,15 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const apiKey = apiKeyInput.value.trim();
 
             try {
-                // Check if results are inline in the operation response
-                console.log('Extracting batch results. opData keys:', Object.keys(opData));
-                console.log('opData.response keys:', opData.response ? Object.keys(opData.response) : 'none');
-                console.log('Full opData:', JSON.stringify(opData).substring(0, 2000));
+                // Google nests results at metadata.output.inlinedResponses.inlinedResponses
+                const metaOutput = opData.metadata?.output || {};
                 const batchResponse = opData.response || opData;
-                const inlinedResponses = batchResponse.inlinedResponses || batchResponse.dest?.inlinedResponses || [];
+                const inlinedResponses =
+                    metaOutput.inlinedResponses?.inlinedResponses ||
+                    batchResponse.inlinedResponses?.inlinedResponses ||
+                    batchResponse.inlinedResponses ||
+                    batchResponse.dest?.inlinedResponses ||
+                    [];
 
                 if (inlinedResponses.length > 0) {
                     // Results are inline
@@ -8929,6 +8936,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function saveReviewItems() {
             Storage.setIfOffline('reviewItems', state.reviewItems);
+            scheduleCloudSync();
         }
 
         function saveBatchJobs() {
@@ -9064,6 +9072,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                 </span>
                                 <span>${job.requestCount} image${job.requestCount !== 1 ? 's' : ''}</span>
                                 <span>${dateStr}</span>
+                                ${job.model ? `<span style="opacity:0.7">${job.model.replace('models/', '').replace('gemini-', '').replace('-preview', '')}</span>` : ''}
                             </div>
                             ${etaHtml}
                             <div class="batch-job-prompt">${job.prompt || 'No prompt'}</div>
@@ -9186,7 +9195,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function openReviewLightbox(id) {
             const item = state.reviewItems.find(i => i.id === id);
             if (item) {
-                openLightbox(item.src);
+                openLightbox([{ src: item.src }], 0, 'review');
             }
         }
 
