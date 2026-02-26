@@ -319,7 +319,7 @@
 
         @keyframes bgPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1200px; margin: 0 auto; padding-bottom: 40px; }
 
         /* Header */
         .header { text-align: center; margin-bottom: 30px; }
@@ -1742,7 +1742,7 @@
 
         /* Theme Toggle Button */
         .theme-toggle {
-            position: fixed;
+            position: absolute;
             top: 20px;
             right: 20px;
             width: 44px;
@@ -2005,7 +2005,7 @@
 
         /* Auth UI */
         .auth-bar {
-            position: fixed;
+            position: absolute;
             top: 20px;
             right: 80px;
             display: flex;
@@ -3957,6 +3957,229 @@
             background: rgba(124, 58, 237, 0.6);
         }
 
+        /* Batch Jobs Section */
+        .batch-jobs-section {
+            margin-bottom: 20px;
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .batch-jobs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .batch-jobs-header h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .batch-jobs-hint {
+            font-size: 0.75rem;
+            color: var(--color-green);
+        }
+
+        .batch-jobs-list {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .batch-job-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            gap: 12px;
+        }
+
+        .batch-job-card.processing {
+            border-color: var(--color-purple);
+            background: rgba(124, 58, 237, 0.08);
+        }
+
+        .batch-job-card.completed {
+            border-color: var(--color-green);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .batch-job-card.failed {
+            border-color: var(--color-red);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .batch-job-card.cancelled {
+            opacity: 0.6;
+        }
+
+        .batch-job-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .batch-job-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .batch-job-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .batch-job-status {
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .batch-job-status.completed { color: var(--color-green); }
+        .batch-job-status.failed { color: var(--color-red); }
+        .batch-job-status.processing { color: var(--color-purple); }
+        .batch-job-status.pending { color: var(--color-amber, #f59e0b); }
+        .batch-job-status.cancelled { color: var(--text-secondary); }
+
+        .batch-job-prompt {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .batch-job-error {
+            font-size: 0.8rem;
+            color: var(--color-red);
+            margin-top: 4px;
+        }
+
+        .batch-job-eta {
+            font-size: 0.75rem;
+            color: var(--color-purple);
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        /* Toast Notification Banner */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+            animation: toastSlideIn 0.3s ease-out;
+        }
+
+        .toast.toast-exit {
+            animation: toastSlideOut 0.3s ease-in forwards;
+        }
+
+        .toast-success {
+            border-color: var(--color-green);
+        }
+
+        .toast-icon {
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .toast-message {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .toast-action {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 8px;
+            background: var(--color-green);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+
+        .toast-action:hover {
+            opacity: 0.85;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 4px;
+            flex-shrink: 0;
+        }
+
+        @keyframes toastSlideIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes toastSlideOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .batch-job-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
         .review-selection-bar {
             display: none;
             align-items: center;
@@ -4148,7 +4371,7 @@
         /* ========== MOBILE MENU ========== */
         .mobile-menu-btn {
             display: none;
-            position: fixed;
+            position: absolute;
             top: 16px;
             right: 16px;
             width: 44px;
@@ -4746,6 +4969,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 </head>
 <body>
+    <!-- Toast Notification Banner -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Mobile Hamburger Menu -->
     <button class="mobile-menu-btn" id="mobileMenuBtn" title="Menu">
         <span class="hamburger-icon">
@@ -5095,6 +5321,9 @@
                         <button class="option-btn active" data-value="single">Single</button>
                         <button class="option-btn" data-value="batch">Batch</button>
                     </div>
+                    <div class="mode-hint" id="modeHint" style="display: none; font-size: 0.75rem; color: var(--color-green); margin-top: 4px;">
+                        Batch API: 50% cheaper, async processing (up to 24h)
+                    </div>
                 </div>
             </div>
 
@@ -5160,6 +5389,13 @@
                     <button class="review-btn primary" onclick="approveSelectedReview()">Add Selected to Gallery</button>
                     <button class="review-btn danger" onclick="rejectSelectedReview()">Discard Selected</button>
                 </div>
+            </div>
+            <div class="batch-jobs-section" id="batchJobsSection" style="display: none;">
+                <div class="batch-jobs-header">
+                    <h4>Batch Jobs</h4>
+                    <span class="batch-jobs-hint">50% cheaper async processing</span>
+                </div>
+                <div class="batch-jobs-list" id="batchJobsList"></div>
             </div>
             <div class="review-empty" id="reviewEmpty">
                 <div class="review-empty-icon">📥</div>
@@ -5715,6 +5951,9 @@
             // Review system
             reviewItems: Storage.get('reviewItems', []),
             reviewSelectMode: false,
+            // Batch API system
+            batchJobs: Storage.get('batchJobs', []),
+            batchPollInterval: null,
             // Collections system
             collections: Storage.get('collections', []),
             activeCollection: null,
@@ -6387,7 +6626,8 @@
                     activeProductId: state.activeProductId,
                     prompts: state.prompts,
                     reviewItems: state.reviewItems,
-                    collections: state.collections
+                    collections: state.collections,
+                    batchJobs: state.batchJobs
                 });
 
                 // Save products separately (can be large with images)
@@ -6430,6 +6670,10 @@
                         state.collections = settings.collections;
                         // Don't save to localStorage - cloud is source of truth when signed in
                         renderCollections();
+                    }
+                    if (settings.batchJobs) {
+                        state.batchJobs = settings.batchJobs;
+                        // Don't save to localStorage - cloud is source of truth when signed in
                     }
                 }
 
@@ -6502,6 +6746,9 @@
                 // Re-render collections now that gallery is loaded (to update counts)
                 renderCollections();
 
+                // Start polling for any pending batch jobs from cloud
+                startBatchPolling();
+
                 showSyncIndicator('Synced!', false);
 
                 // Check if there was truly local data BEFORE we logged in
@@ -6516,6 +6763,7 @@
                 state.prompts = Storage.get('prompts', []);
                 state.reviewItems = Storage.get('reviewItems', []);
                 state.collections = Storage.get('collections', []);
+                state.batchJobs = Storage.get('batchJobs', []);
                 renderGallery();
                 renderCollections();
                 renderProducts();
@@ -6639,15 +6887,12 @@
 
         function toggleBatchMode() {
             const isBatch = state.mode === 'batch';
-            batchGrid.style.display = isBatch ? 'grid' : 'none';
-            renderBatchGrid();
+            batchGrid.style.display = 'none';
+            $('modeHint').style.display = isBatch ? 'block' : 'none';
+            submitBtn.querySelector('span').textContent = isBatch ? 'Submit Batch' : 'Generate Edit';
 
-            // Show/hide queue panel based on mode
-            if (isBatch) {
-                showQueuePanel();
-            } else {
-                hideQueuePanel();
-            }
+            // Batch mode uses the Batch API, not the queue panel
+            hideQueuePanel();
         }
 
         // ========== FILE UPLOAD ==========
@@ -8167,6 +8412,390 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
+        // ========== BATCH API SYSTEM ==========
+
+        function extractModelName(endpointUrl) {
+            const match = endpointUrl.match(/\/models\/([^:]+)/);
+            return match ? `models/${match[1]}` : null;
+        }
+
+        async function submitBatchJob(imagesToProcess, prompt) {
+            const apiKey = apiKeyInput.value.trim();
+            const endpointUrl = apiEndpointInput.value.trim();
+            const modelName = extractModelName(endpointUrl);
+            const systemInstructions = $('systemInstructions').value.trim();
+
+            if (!modelName) {
+                showStatus('Could not determine model from endpoint', 'error');
+                return;
+            }
+
+            const aspectMap = {
+                '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)',
+                '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)',
+                '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)'
+            };
+            const resolutionMap = { '1K': '1024x1024 pixels', '2K': '2048x2048 pixels', '4K': '4096x4096 pixels' };
+
+            let fullPrompt = '';
+            if (systemInstructions) {
+                fullPrompt = `[System Instructions: ${systemInstructions}]\n\n`;
+            }
+
+            const hasMentions = prompt.includes('@main-image') || prompt.includes('@reference');
+            if (hasMentions) {
+                let mentionContext = '[Image References: ';
+                const contextParts = [];
+                if (prompt.includes('@main-image')) contextParts.push('@main-image refers to the first/main uploaded image');
+                if (prompt.includes('@reference')) contextParts.push('@reference refers to the style reference image (second image)');
+                mentionContext += contextParts.join('; ') + ']\n\n';
+                fullPrompt += mentionContext;
+            }
+
+            fullPrompt += prompt;
+            fullPrompt += `\n\nAspect ratio: ${aspectMap[state.selectedAspectRatio] || 'square (1:1)'}`;
+            fullPrompt += `\nResolution: ${resolutionMap[state.selectedResolution] || '1024x1024 pixels'}`;
+
+            // Build inlineRequests array
+            const inlineRequests = [];
+            const isTextToImage = imagesToProcess.length === 0;
+
+            if (isTextToImage) {
+                // Text-to-image: no input image, just prompt
+                for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                    const parts = [];
+                    if (state.referenceImageBase64) {
+                        parts.push({
+                            inlineData: {
+                                mimeType: state.currentImageMimeType || 'image/jpeg',
+                                data: state.referenceImageBase64
+                            }
+                        });
+                    }
+                    parts.push({ text: fullPrompt });
+                    inlineRequests.push({
+                        request: {
+                            contents: [{ parts }],
+                            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                        }
+                    });
+                }
+            } else {
+                // Image-to-image: include input image(s)
+                for (const imgData of imagesToProcess) {
+                    for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                        const parts = [
+                            { inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } },
+                            { text: fullPrompt }
+                        ];
+                        if (state.referenceImageBase64) {
+                            parts.splice(1, 0, {
+                                inlineData: {
+                                    mimeType: state.currentImageMimeType || 'image/jpeg',
+                                    data: state.referenceImageBase64
+                                }
+                            });
+                        }
+                        inlineRequests.push({
+                            request: {
+                                contents: [{ parts }],
+                                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Check payload size (inline requests must be under 20MB)
+            const payloadSize = JSON.stringify(inlineRequests).length;
+            if (payloadSize > 19 * 1024 * 1024) {
+                showStatus('Batch too large (>20MB). Reduce image count or resolution.', 'error');
+                return;
+            }
+
+            const displayName = `KnappShot batch - ${new Date().toLocaleString()}`;
+
+            try {
+                showStatus('Submitting batch job...', 'loading');
+                submitBtn.disabled = true;
+
+                // Extract model ID from the full model path (e.g., "models/gemini-3-pro-image-preview" -> "gemini-3-pro-image-preview")
+                const modelId = modelName.replace('models/', '');
+
+                const response = await fetch(
+                    `/api/gemini-batch/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            batch: {
+                                display_name: displayName,
+                                input_config: {
+                                    requests: {
+                                        requests: inlineRequests.map((req, i) => ({
+                                            request: req.request,
+                                            metadata: { key: `request-${i + 1}` }
+                                        }))
+                                    }
+                                }
+                            }
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    throw new Error(errorData?.error?.message || `API error: ${response.status}`);
+                }
+
+                const batchData = await response.json();
+
+                const job = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    batchName: batchData.name || batchData.metadata?.name,
+                    displayName: displayName,
+                    status: batchData.metadata?.state || batchData.done === false ? 'JOB_STATE_PENDING' : 'JOB_STATE_SUCCEEDED',
+                    createdAt: Date.now(),
+                    completedAt: null,
+                    requestCount: inlineRequests.length,
+                    resultsProcessed: false,
+                    prompt: prompt,
+                    error: null
+                };
+
+                state.batchJobs.unshift(job);
+                saveBatchJobs();
+                updateReviewUI();
+                startBatchPolling();
+
+                showStatus(`Batch submitted! ${inlineRequests.length} image${inlineRequests.length !== 1 ? 's' : ''} queued for async processing (50% cheaper).`, 'success');
+                addNotification('batch_submitted', 'Batch Submitted', `${inlineRequests.length} image${inlineRequests.length !== 1 ? 's' : ''} submitted for batch processing. Results within 24 hours.`, 'View Status');
+                pulseReviewBadge();
+
+            } catch (error) {
+                console.error('Batch submission error:', error);
+                if (error.message === 'Failed to fetch') {
+                    showStatus('Batch API blocked by browser (CORS). Setting up proxy...', 'error');
+                    console.error('CORS error detected — the Gemini Batch API does not support browser requests. A proxy server is needed.');
+                } else {
+                    showStatus(`Batch submission failed: ${error.message}`, 'error');
+                }
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        function startBatchPolling() {
+            if (state.batchPollInterval) return;
+
+            const hasActiveJobs = state.batchJobs.some(j =>
+                j.status === 'JOB_STATE_PENDING' || j.status === 'JOB_STATE_RUNNING'
+            );
+            if (!hasActiveJobs) return;
+
+            pollBatchJobs();
+            state.batchPollInterval = setInterval(pollBatchJobs, 60000);
+        }
+
+        function stopBatchPolling() {
+            if (state.batchPollInterval) {
+                clearInterval(state.batchPollInterval);
+                state.batchPollInterval = null;
+            }
+        }
+
+        async function pollBatchJobs() {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) return;
+
+            const activeJobs = state.batchJobs.filter(j =>
+                j.status === 'JOB_STATE_PENDING' || j.status === 'JOB_STATE_RUNNING'
+            );
+
+            if (activeJobs.length === 0) {
+                stopBatchPolling();
+                return;
+            }
+
+            for (const job of activeJobs) {
+                // Auto-timeout jobs older than 25 hours
+                if (Date.now() - job.createdAt > 25 * 60 * 60 * 1000) {
+                    job.status = 'JOB_STATE_FAILED';
+                    job.error = 'Timed out after 24 hours';
+                    job.completedAt = Date.now();
+                    saveBatchJobs();
+                    updateReviewUI();
+                    continue;
+                }
+
+                try {
+                    const response = await fetch(
+                        `/api/gemini-batch-poll/${job.batchName}?key=${encodeURIComponent(apiKey)}`
+                    );
+
+                    if (!response.ok) {
+                        console.error(`Poll error for ${job.batchName}: ${response.status}`);
+                        continue;
+                    }
+
+                    const opData = await response.json();
+                    // The response is an Operation object with metadata.state
+                    const batchMeta = opData.metadata || {};
+                    const newStatus = batchMeta.state || (opData.done ? 'JOB_STATE_SUCCEEDED' : job.status);
+
+                    if (newStatus !== job.status) {
+                        job.status = newStatus;
+
+                        if ((newStatus === 'JOB_STATE_SUCCEEDED' || opData.done) && !job.resultsProcessed) {
+                            job.completedAt = Date.now();
+                            // Results may be in opData.response or need to be downloaded
+                            await extractBatchResults(job, opData);
+                        } else if (newStatus === 'JOB_STATE_FAILED') {
+                            job.completedAt = Date.now();
+                            job.error = opData.error?.message || batchMeta.error?.message || 'Batch job failed';
+                            addNotification('error', 'Batch Failed', `"${job.displayName}" failed: ${job.error}`, null);
+                        } else if (newStatus === 'JOB_STATE_CANCELLED') {
+                            job.completedAt = Date.now();
+                        }
+
+                        saveBatchJobs();
+                        updateReviewUI();
+                    }
+                } catch (error) {
+                    console.error(`Error polling batch ${job.batchName}:`, error);
+                }
+            }
+        }
+
+        async function extractBatchResults(job, opData) {
+            let successCount = 0;
+            let failCount = 0;
+            const apiKey = apiKeyInput.value.trim();
+
+            try {
+                // Check if results are inline in the operation response
+                const batchResponse = opData.response || opData;
+                const inlinedResponses = batchResponse.inlinedResponses || batchResponse.dest?.inlinedResponses || [];
+
+                if (inlinedResponses.length > 0) {
+                    // Results are inline
+                    for (const respWrapper of inlinedResponses) {
+                        try {
+                            const resp = respWrapper.response;
+                            const candidate = resp?.candidates?.[0];
+                            const imagePart = candidate?.content?.parts?.find(
+                                p => p.inlineData?.mimeType?.startsWith('image/')
+                            );
+                            if (imagePart) {
+                                const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                                addToReview(imageSrc, job.prompt, null);
+                                successCount++;
+                            } else {
+                                failCount++;
+                            }
+                        } catch (e) {
+                            console.error('Error extracting inline batch result:', e);
+                            failCount++;
+                        }
+                    }
+                } else {
+                    // Results may be in a file — check for output file reference
+                    const outputFile = batchResponse.outputFile || batchResponse.dest?.fileName ||
+                        opData.metadata?.destFileName || opData.metadata?.dest?.fileName;
+
+                    if (outputFile) {
+                        // Download the results file
+                        const fileResp = await fetch(
+                            `/api/gemini-batch-download/${outputFile}:download?alt=media&key=${encodeURIComponent(apiKey)}`
+                        );
+                        if (fileResp.ok) {
+                            const fileText = await fileResp.text();
+                            const lines = fileText.split('\n').filter(l => l.trim());
+                            for (const line of lines) {
+                                try {
+                                    const parsed = JSON.parse(line);
+                                    const resp = parsed.response;
+                                    const candidate = resp?.candidates?.[0];
+                                    const imagePart = candidate?.content?.parts?.find(
+                                        p => p.inlineData?.mimeType?.startsWith('image/')
+                                    );
+                                    if (imagePart) {
+                                        const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                                        addToReview(imageSrc, job.prompt, null);
+                                        successCount++;
+                                    } else {
+                                        failCount++;
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing batch result line:', e);
+                                    failCount++;
+                                }
+                            }
+                        } else {
+                            console.error('Failed to download batch results file:', fileResp.status);
+                            failCount = job.requestCount;
+                        }
+                    } else {
+                        console.warn('No inline responses or output file found in batch results:', opData);
+                        failCount = job.requestCount;
+                    }
+                }
+            } catch (e) {
+                console.error('Error extracting batch results:', e);
+                failCount = job.requestCount;
+            }
+
+            job.resultsProcessed = true;
+            saveBatchJobs();
+
+            if (successCount > 0) {
+                addNotification(
+                    'batch_complete',
+                    'Batch Complete',
+                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${failCount > 0 ? ` (${failCount} failed)` : ''}`,
+                    'View in Review'
+                );
+                pulseReviewBadge();
+                showToast(
+                    'Batch Complete!',
+                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${failCount > 0 ? ` (${failCount} failed)` : ''}`,
+                    'View in Review'
+                );
+            }
+        }
+
+        async function cancelBatchJob(jobId) {
+            const job = state.batchJobs.find(j => j.id === jobId);
+            if (!job || (job.status !== 'JOB_STATE_PENDING' && job.status !== 'JOB_STATE_RUNNING')) return;
+
+            const apiKey = apiKeyInput.value.trim();
+            try {
+                const response = await fetch(
+                    `/api/gemini-batch-poll/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                    { method: 'POST' }
+                );
+
+                if (response.ok) {
+                    job.status = 'JOB_STATE_CANCELLED';
+                    job.completedAt = Date.now();
+                    saveBatchJobs();
+                    updateReviewUI();
+                    showStatus('Batch job cancelled', 'success');
+                } else {
+                    showStatus('Failed to cancel batch job', 'error');
+                }
+            } catch (error) {
+                console.error('Error cancelling batch:', error);
+                showStatus('Failed to cancel batch job', 'error');
+            }
+        }
+
+        function dismissBatchJob(jobId) {
+            state.batchJobs = state.batchJobs.filter(j => j.id !== jobId);
+            saveBatchJobs();
+            updateReviewUI();
+        }
+
         // ========== REVIEW SYSTEM ==========
         const reviewGrid = $('reviewGrid');
         const reviewEmpty = $('reviewEmpty');
@@ -8195,23 +8824,39 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             Storage.setIfOffline('reviewItems', state.reviewItems);
         }
 
+        function saveBatchJobs() {
+            // Always save to localStorage (batch jobs are operational data that must persist across refreshes)
+            Storage.set('batchJobs', state.batchJobs);
+        }
+
         function updateReviewUI() {
             const count = state.reviewItems.length;
+            const activeBatchCount = state.batchJobs.filter(j =>
+                j.status === 'JOB_STATE_PENDING' || j.status === 'JOB_STATE_RUNNING'
+            ).length;
 
-            // Update badge
-            reviewTabBadge.textContent = count;
-            reviewTabBadge.classList.toggle('empty', count === 0);
+            // Update badge (include active batch jobs in count)
+            const badgeCount = count + activeBatchCount;
+            reviewTabBadge.textContent = badgeCount;
+            reviewTabBadge.classList.toggle('empty', badgeCount === 0);
 
             // Update count text
-            reviewCountText.textContent = `${count} image${count !== 1 ? 's' : ''} pending review`;
+            let countText = `${count} image${count !== 1 ? 's' : ''} pending review`;
+            if (activeBatchCount > 0) {
+                countText += `, ${activeBatchCount} batch job${activeBatchCount !== 1 ? 's' : ''} in progress`;
+            }
+            reviewCountText.textContent = countText;
 
             // Update buttons
             approveAllBtn.disabled = count === 0;
             clearReviewBtn.disabled = count === 0;
 
             // Show/hide empty state
-            if (count === 0) {
+            if (count === 0 && activeBatchCount === 0 && state.batchJobs.length === 0) {
                 reviewEmpty.style.display = 'block';
+                reviewGrid.innerHTML = '';
+            } else if (count === 0 && (activeBatchCount > 0 || state.batchJobs.length > 0)) {
+                reviewEmpty.style.display = 'none';
                 reviewGrid.innerHTML = '';
             } else {
                 reviewEmpty.style.display = 'none';
@@ -8219,6 +8864,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
 
             updateReviewSelectionBar();
+            renderBatchJobs();
         }
 
         function renderReviewGrid() {
@@ -8238,6 +8884,85 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                 ${item.originalImage ? `<button class="review-item-btn compare" onclick="compareReviewItem('${item.id}')">⊞</button>` : ''}
                                 <button class="review-item-btn reject" onclick="rejectReviewItem('${item.id}')">×</button>
                             </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatElapsedTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            if (hours > 0) return `${hours}h ${minutes % 60}m ago`;
+            if (minutes > 0) return `${minutes}m ago`;
+            return `${seconds}s ago`;
+        }
+
+        function renderBatchJobs() {
+            const section = $('batchJobsSection');
+            const list = $('batchJobsList');
+
+            if (state.batchJobs.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = state.batchJobs.map(job => {
+                const date = new Date(job.createdAt);
+                const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const elapsed = Date.now() - job.createdAt;
+
+                let statusClass, statusLabel;
+                switch (job.status) {
+                    case 'JOB_STATE_PENDING':
+                        statusClass = 'pending'; statusLabel = 'Pending'; break;
+                    case 'JOB_STATE_RUNNING':
+                        statusClass = 'processing'; statusLabel = 'Processing'; break;
+                    case 'JOB_STATE_SUCCEEDED':
+                        statusClass = 'completed'; statusLabel = 'Completed'; break;
+                    case 'JOB_STATE_FAILED':
+                        statusClass = 'failed'; statusLabel = 'Failed'; break;
+                    case 'JOB_STATE_CANCELLED':
+                        statusClass = 'cancelled'; statusLabel = 'Cancelled'; break;
+                    default:
+                        statusClass = 'pending'; statusLabel = job.status;
+                }
+
+                const isActive = job.status === 'JOB_STATE_PENDING' || job.status === 'JOB_STATE_RUNNING';
+
+                // ETA: Google guarantees results within 24h, most complete much sooner
+                let etaHtml = '';
+                if (isActive) {
+                    const elapsedHours = elapsed / (1000 * 60 * 60);
+                    if (elapsedHours < 1) {
+                        etaHtml = `<span class="batch-job-eta">Submitted ${formatElapsedTime(elapsed)} - typically completes within a few hours</span>`;
+                    } else {
+                        const remainingHours = Math.max(1, Math.ceil(24 - elapsedHours));
+                        etaHtml = `<span class="batch-job-eta">Submitted ${formatElapsedTime(elapsed)} - up to ~${remainingHours}h remaining</span>`;
+                    }
+                }
+
+                return `
+                    <div class="batch-job-card ${statusClass}">
+                        <div class="batch-job-info">
+                            <div class="batch-job-title">${job.displayName}</div>
+                            <div class="batch-job-meta">
+                                <span class="batch-job-status ${statusClass}">
+                                    ${job.status === 'JOB_STATE_RUNNING' ? '<span class="queue-status-spinner"></span>' : ''}
+                                    ${statusLabel}
+                                </span>
+                                <span>${job.requestCount} image${job.requestCount !== 1 ? 's' : ''}</span>
+                                <span>${dateStr}</span>
+                            </div>
+                            ${etaHtml}
+                            <div class="batch-job-prompt">${job.prompt || 'No prompt'}</div>
+                            ${job.error ? `<div class="batch-job-error">${job.error}</div>` : ''}
+                        </div>
+                        <div class="batch-job-actions">
+                            ${isActive ? `<button class="review-btn danger" onclick="cancelBatchJob('${job.id}')">Cancel</button>` : ''}
+                            ${!isActive ? `<button class="review-btn" onclick="dismissBatchJob('${job.id}')">Dismiss</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -8370,6 +9095,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         // Initialize review UI on load
         updateReviewUI();
+        startBatchPolling();
 
         // ========== NOTIFICATION SYSTEM ==========
         let notifications = Storage.get('notifications', []);
@@ -8406,6 +9132,47 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 notificationDropdown.classList.remove('show');
             }
         });
+
+        function showToast(title, message, actionText = null, actionCallback = null, duration = 8000) {
+            const container = $('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-success';
+            toast.innerHTML = `
+                <span class="toast-icon">&#x2705;</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                ${actionText ? `<button class="toast-action" id="toastAction_${Date.now()}">${actionText}</button>` : ''}
+                <button class="toast-close" onclick="this.parentElement.classList.add('toast-exit'); setTimeout(() => this.parentElement.remove(), 300)">&#x2715;</button>
+            `;
+            container.appendChild(toast);
+
+            if (actionText && actionCallback) {
+                const actionBtn = toast.querySelector('.toast-action');
+                if (actionBtn) actionBtn.addEventListener('click', () => {
+                    actionCallback();
+                    toast.classList.add('toast-exit');
+                    setTimeout(() => toast.remove(), 300);
+                });
+            } else if (actionText) {
+                const actionBtn = toast.querySelector('.toast-action');
+                if (actionBtn) actionBtn.addEventListener('click', () => {
+                    // Default: switch to review tab
+                    document.querySelector('[data-tab="review"]')?.click();
+                    toast.classList.add('toast-exit');
+                    setTimeout(() => toast.remove(), 300);
+                });
+            }
+
+            // Auto-dismiss
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('toast-exit');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, duration);
+        }
 
         function addNotification(type, title, message, actionText = null, actionCallback = null) {
             const notification = {
@@ -9409,38 +10176,22 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (!apiKey) { showStatus('Enter API key', 'error'); return; }
             if (!prompt) { showStatus('Enter a prompt', 'error'); return; }
 
-            const imagesToProcess = state.mode === 'batch' ? state.batchImages :
-                (state.currentImageBase64 ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }] : []);
+            const imagesToProcess = state.currentImageBase64
+                ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }]
+                : [];
 
             console.log('Generate: Mode:', state.mode);
             console.log('Generate: currentImageBase64 exists?', !!state.currentImageBase64, 'length:', state.currentImageBase64?.length);
             console.log('Generate: imagesToProcess count:', imagesToProcess.length);
 
-            // Allow text-to-image generation without an input image (single mode only)
-            const isTextToImage = imagesToProcess.length === 0 && state.mode === 'single';
-
-            // Batch mode still requires images
-            if (state.mode === 'batch' && imagesToProcess.length === 0) {
-                showStatus('Upload images first for batch mode', 'error');
-                return;
-            }
+            // Allow text-to-image generation without an input image
+            const isTextToImage = imagesToProcess.length === 0;
 
             savePrompt();
 
-            // BATCH MODE: Use queue system
-            if (state.mode === 'batch' && imagesToProcess.length > 0) {
-                // Add all images to queue
-                for (const imgData of imagesToProcess) {
-                    for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
-                        addToQueue(imgData.base64, imgData.mimeType, prompt);
-                    }
-                }
-
-                showQueuePanel();
-                showStatus(`Added ${imagesToProcess.length * state.selectedGenerationCount} items to queue`, 'success');
-
-                // Start processing the queue
-                processQueue();
+            // BATCH MODE: Submit to Gemini Batch API (50% cheaper, async processing)
+            if (state.mode === 'batch') {
+                await submitBatchJob(imagesToProcess, prompt);
                 return;
             }
 
