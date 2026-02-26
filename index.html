@@ -5097,6 +5097,7 @@
                         <label>Image Generation Model</label>
                         <select id="apiEndpoint">
                             <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent">Gemini 3 Pro Image Preview</option>
+                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent">Gemini 3.1 Flash Image Preview</option>
                         </select>
                     </div>
                     <div class="config-field">
@@ -5977,6 +5978,22 @@
         const enhanceBtn = $('enhanceBtn');
         const batchGrid = $('batchGrid');
 
+        // Persist model dropdown selections
+        ['apiEndpoint', 'editorModelSelect', 'promptgenModelSelect', 'breakdownModelSelect'].forEach(id => {
+            const el = $(id);
+            if (!el) return;
+            // Restore from localStorage
+            const saved = Storage.get(id);
+            if (saved && [...el.options].some(o => o.value === saved)) {
+                el.value = saved;
+            }
+            // Save on change
+            el.addEventListener('change', () => {
+                Storage.set(id, el.value);
+                scheduleCloudSync();
+            });
+        });
+
         // Auto-resize prompt textarea to fit content
         function autoResizePromptInput() {
             if (!promptInput) return;
@@ -6263,7 +6280,7 @@
                     ${notificationInboxHTML}
                     <div class="user-info">
                         <div class="user-avatar">
-                            ${photoURL ? `<img src="${photoURL}" alt="Avatar">` : displayName.charAt(0).toUpperCase()}
+                            ${photoURL ? `<img src="${photoURL}" alt="Avatar" referrerpolicy="no-referrer">` : displayName.charAt(0).toUpperCase()}
                         </div>
                         <span class="user-name">${displayName}</span>
                     </div>
@@ -6627,7 +6644,11 @@
                     prompts: state.prompts,
                     reviewItems: state.reviewItems,
                     collections: state.collections,
-                    batchJobs: state.batchJobs
+                    batchJobs: state.batchJobs,
+                    imageModel: apiEndpointInput.value,
+                    editorModel: $('editorModelSelect').value,
+                    promptgenModel: $('promptgenModelSelect').value,
+                    breakdownModel: $('breakdownModelSelect').value
                 });
 
                 // Save products separately (can be large with images)
@@ -6675,6 +6696,11 @@
                         state.batchJobs = settings.batchJobs;
                         // Don't save to localStorage - cloud is source of truth when signed in
                     }
+                    // Restore model dropdown selections from cloud
+                    if (settings.imageModel) apiEndpointInput.value = settings.imageModel;
+                    if (settings.editorModel) $('editorModelSelect').value = settings.editorModel;
+                    if (settings.promptgenModel) $('promptgenModelSelect').value = settings.promptgenModel;
+                    if (settings.breakdownModel) $('breakdownModelSelect').value = settings.breakdownModel;
                 }
 
                 // Load products - always use cloud as source of truth when signed in
@@ -8345,7 +8371,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             contents: [{ parts }],
-                            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                            generationConfig: getGenerationConfig()
                         })
                     });
 
@@ -8419,6 +8445,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             return match ? `models/${match[1]}` : null;
         }
 
+        function getGenerationConfig() {
+            const endpoint = apiEndpointInput.value;
+            if (endpoint.includes('flash-image-preview')) {
+                return { responseModalities: ['IMAGE'], thinkingConfig: { thinkingLevel: 'HIGH' } };
+            }
+            return { responseModalities: ['IMAGE', 'TEXT'] };
+        }
+
         async function submitBatchJob(imagesToProcess, prompt) {
             const apiKey = apiKeyInput.value.trim();
             const endpointUrl = apiEndpointInput.value.trim();
@@ -8476,7 +8510,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     inlineRequests.push({
                         request: {
                             contents: [{ parts }],
-                            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                            generationConfig: getGenerationConfig()
                         }
                     });
                 }
@@ -8499,7 +8533,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         inlineRequests.push({
                             request: {
                                 contents: [{ parts }],
-                                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                                generationConfig: getGenerationConfig()
                             }
                         });
                     }
@@ -8827,6 +8861,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function saveBatchJobs() {
             // Always save to localStorage (batch jobs are operational data that must persist across refreshes)
             Storage.set('batchJobs', state.batchJobs);
+            scheduleCloudSync();
         }
 
         function updateReviewUI() {
@@ -10258,7 +10293,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 contents: [{ parts }],
-                                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                                generationConfig: getGenerationConfig()
                             })
                         });
 
@@ -10299,7 +10334,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     contents: [{ parts }],
-                                    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                                    generationConfig: getGenerationConfig()
                                 })
                             });
 
@@ -10873,7 +10908,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (user) {
                 html += `
                     <div class="mobile-menu-user">
-                        <img src="${user.photoURL || 'https://via.placeholder.com/40'}" alt="Avatar" class="mobile-menu-user-avatar">
+                        <img src="${user.photoURL || 'https://via.placeholder.com/40'}" alt="Avatar" class="mobile-menu-user-avatar" referrerpolicy="no-referrer">
                         <div class="mobile-menu-user-info">
                             <div class="mobile-menu-user-name">${user.displayName || 'User'}</div>
                             <div class="mobile-menu-user-email">${user.email || ''}</div>
@@ -12599,7 +12634,7 @@ Generate the edited version of the first image.`;
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts }],
-                        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                        generationConfig: getGenerationConfig()
                     })
                 });
 
