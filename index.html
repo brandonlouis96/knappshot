@@ -8557,7 +8557,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 const modelId = modelName.replace('models/', '');
 
                 const response = await fetch(
-                    `/api/gemini-batch/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -8664,7 +8664,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 try {
                     const response = await fetch(
-                        `/api/gemini-batch-poll/${job.batchName}?key=${encodeURIComponent(apiKey)}`
+                        `https://generativelanguage.googleapis.com/v1beta/${job.batchName}?key=${encodeURIComponent(apiKey)}`
                     );
 
                     if (!response.ok) {
@@ -8740,7 +8740,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     if (outputFile) {
                         // Download the results file
                         const fileResp = await fetch(
-                            `/api/gemini-batch-download/${outputFile}:download?alt=media&key=${encodeURIComponent(apiKey)}`
+                            `https://generativelanguage.googleapis.com/download/v1beta/${outputFile}:download?alt=media&key=${encodeURIComponent(apiKey)}`
                         );
                         if (fileResp.ok) {
                             const fileText = await fileResp.text();
@@ -8805,7 +8805,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const apiKey = apiKeyInput.value.trim();
             try {
                 const response = await fetch(
-                    `/api/gemini-batch-poll/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                    `https://generativelanguage.googleapis.com/v1beta/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
                     { method: 'POST' }
                 );
 
@@ -9282,8 +9282,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             Storage.set('notifications', notifications);
             updateNotificationUI();
 
-            // If it's a batch complete notification, switch to review tab
-            if (notification.type === 'batch_complete') {
+            // If it's a batch notification, switch to review tab
+            if (notification.type === 'batch_complete' || notification.type === 'batch_submitted') {
                 notificationDropdown.classList.remove('show');
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
