@@ -5097,7 +5097,8 @@
                         <label>Image Generation Model</label>
                         <select id="apiEndpoint">
                             <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent">Gemini 3 Pro Image Preview</option>
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent">Gemini 3.1 Flash Image Preview</option>
+                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high">Gemini 3.1 Flash (Thinking - High)</option>
+                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="none">Gemini 3.1 Flash (Default Thinking)</option>
                         </select>
                     </div>
                     <div class="config-field">
@@ -5982,15 +5983,25 @@
         ['apiEndpoint', 'editorModelSelect', 'promptgenModelSelect', 'breakdownModelSelect'].forEach(id => {
             const el = $(id);
             if (!el) return;
-            // Restore from localStorage
-            const saved = Storage.get(id);
-            if (saved && [...el.options].some(o => o.value === saved)) {
-                el.value = saved;
+            // Restore from localStorage (use selectedIndex for apiEndpoint since options can share values)
+            const savedIndex = Storage.get(id + '_index');
+            const savedVal = Storage.get(id);
+            if (savedIndex !== null && savedIndex < el.options.length) {
+                el.selectedIndex = savedIndex;
+            } else if (savedVal && [...el.options].some(o => o.value === savedVal)) {
+                el.value = savedVal;
             }
-            // Save on change
+            // Save on change — immediately to cloud (no debounce) so refresh doesn't lose it
             el.addEventListener('change', () => {
                 Storage.set(id, el.value);
-                scheduleCloudSync();
+                Storage.set(id + '_index', el.selectedIndex);
+                saveSettingsToCloud({
+                    imageModel: $('apiEndpoint').value,
+                    imageModelIndex: $('apiEndpoint').selectedIndex,
+                    editorModel: $('editorModelSelect').value,
+                    promptgenModel: $('promptgenModelSelect').value,
+                    breakdownModel: $('breakdownModelSelect').value
+                });
             });
         });
 
@@ -6697,7 +6708,11 @@
                         // Don't save to localStorage - cloud is source of truth when signed in
                     }
                     // Restore model dropdown selections from cloud
-                    if (settings.imageModel) apiEndpointInput.value = settings.imageModel;
+                    if (settings.imageModelIndex !== undefined && settings.imageModelIndex < apiEndpointInput.options.length) {
+                        apiEndpointInput.selectedIndex = settings.imageModelIndex;
+                    } else if (settings.imageModel) {
+                        apiEndpointInput.value = settings.imageModel;
+                    }
                     if (settings.editorModel) $('editorModelSelect').value = settings.editorModel;
                     if (settings.promptgenModel) $('promptgenModelSelect').value = settings.promptgenModel;
                     if (settings.breakdownModel) $('breakdownModelSelect').value = settings.breakdownModel;
@@ -8387,6 +8402,12 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         item.result = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
                         item.status = 'completed';
 
+                        // Show cost estimate
+                        const cost = estimateCost(data.usageMetadata);
+                        if (cost) {
+                            showStatus(`Image generated — est. cost: $${cost.total.toFixed(4)}`, 'success');
+                        }
+
                         // Add to review
                         addToReview(item.result, item.prompt, `data:${item.imageMimeType};base64,${item.imageBase64}`);
                     } else {
@@ -8448,9 +8469,40 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function getGenerationConfig() {
             const endpoint = apiEndpointInput.value;
             if (endpoint.includes('flash-image-preview')) {
-                return { responseModalities: ['IMAGE'], thinkingConfig: { thinkingLevel: 'HIGH' } };
+                const selected = apiEndpointInput.options[apiEndpointInput.selectedIndex];
+                const level = selected?.dataset?.thinking || 'high';
+                const config = { responseModalities: ['IMAGE'] };
+                if (level !== 'none') {
+                    config.thinkingConfig = { thinkingLevel: level };
+                }
+                return config;
             }
             return { responseModalities: ['IMAGE', 'TEXT'] };
+        }
+
+        function estimateCost(usageMetadata) {
+            if (!usageMetadata) return null;
+            const endpoint = apiEndpointInput.value;
+            const isFlash = endpoint.includes('flash-image-preview');
+            const res = state.selectedResolution || '1K';
+
+            // Per-image output cost by resolution
+            const flashImageCost = { '1K': 0.067, '2K': 0.101, '4K': 0.151 };
+            const proImageCost = { '1K': 0.134, '2K': 0.134, '4K': 0.24 };
+            const imageCost = isFlash ? (flashImageCost[res] || 0.067) : (proImageCost[res] || 0.134);
+
+            // Token costs (per token)
+            const inputRate = isFlash ? 0.25 / 1e6 : 2.0 / 1e6;
+            const outputRate = isFlash ? 1.5 / 1e6 : 12.0 / 1e6;
+
+            const inputTokens = usageMetadata.promptTokenCount || 0;
+            const thinkingTokens = usageMetadata.thoughtsTokenCount || 0;
+            const outputTextTokens = (usageMetadata.candidatesTokenCount || 0);
+
+            const tokenCost = (inputTokens * inputRate) + ((outputTextTokens + thinkingTokens) * outputRate);
+            const total = imageCost + tokenCost;
+
+            return { total, imageCost, tokenCost, inputTokens, outputTextTokens, thinkingTokens };
         }
 
         async function submitBatchJob(imagesToProcess, prompt) {
@@ -10273,6 +10325,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             fullPrompt += `. Output in ${aspectMap[state.selectedAspectRatio]} at ${resMap[state.selectedResolution]}.`;
 
             const allImages = [];
+            let totalCost = 0;
 
             try {
                 // TEXT-TO-IMAGE MODE: Generate without input image
@@ -10300,6 +10353,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
                         const data = await response.json();
+                        const cost = estimateCost(data.usageMetadata);
+                        if (cost) totalCost += cost.total;
                         if (data.candidates) {
                             for (const candidate of data.candidates) {
                                 for (const part of candidate.content?.parts || []) {
@@ -10341,6 +10396,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
                             const data = await response.json();
+                            const cost = estimateCost(data.usageMetadata);
+                            if (cost) totalCost += cost.total;
                             if (data.candidates) {
                                 for (const candidate of data.candidates) {
                                     for (const part of candidate.content?.parts || []) {
@@ -10357,7 +10414,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 if (allImages.length > 0) {
                     displayResult(allImages);
-                    showStatus(`Generated ${allImages.length} image${allImages.length > 1 ? 's' : ''}!`, 'success');
+                    const costStr = totalCost > 0 ? ` — est. cost: $${totalCost.toFixed(4)}` : '';
+                    showStatus(`Generated ${allImages.length} image${allImages.length > 1 ? 's' : ''}!${costStr}`, 'success');
                 } else {
                     showStatus('No images returned', 'error');
                     resetResultArea();
