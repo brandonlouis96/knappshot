@@ -8461,6 +8461,25 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         // ========== BATCH API SYSTEM ==========
 
+        // Google's API returns BATCH_STATE_* but we also use JOB_STATE_* internally
+        function isBatchActive(status) {
+            return status === 'JOB_STATE_PENDING' || status === 'JOB_STATE_RUNNING' ||
+                   status === 'BATCH_STATE_PENDING' || status === 'BATCH_STATE_RUNNING' ||
+                   status === 'STATE_PENDING' || status === 'STATE_RUNNING';
+        }
+        function isBatchDone(status) {
+            return status === 'JOB_STATE_SUCCEEDED' || status === 'BATCH_STATE_SUCCEEDED' ||
+                   status === 'STATE_SUCCEEDED';
+        }
+        function isBatchFailed(status) {
+            return status === 'JOB_STATE_FAILED' || status === 'BATCH_STATE_FAILED' ||
+                   status === 'STATE_FAILED';
+        }
+        function isBatchCancelled(status) {
+            return status === 'JOB_STATE_CANCELLED' || status === 'BATCH_STATE_CANCELLED' ||
+                   status === 'STATE_CANCELLED';
+        }
+
         function extractModelName(endpointUrl) {
             const match = endpointUrl.match(/\/models\/([^:]+)/);
             return match ? `models/${match[1]}` : null;
@@ -8635,6 +8654,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
 
                 const batchData = await response.json();
+                console.log('Batch submission response:', JSON.stringify(batchData, null, 2));
 
                 const job = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -8674,13 +8694,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function startBatchPolling() {
             if (state.batchPollInterval) return;
 
-            const hasActiveJobs = state.batchJobs.some(j =>
-                j.status === 'JOB_STATE_PENDING' || j.status === 'JOB_STATE_RUNNING'
-            );
+            const hasActiveJobs = state.batchJobs.some(j => isBatchActive(j.status));
             if (!hasActiveJobs) return;
 
             pollBatchJobs();
-            state.batchPollInterval = setInterval(pollBatchJobs, 60000);
+            state.batchPollInterval = setInterval(pollBatchJobs, 30000);
         }
 
         function stopBatchPolling() {
@@ -8694,16 +8712,16 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const apiKey = apiKeyInput.value.trim();
             if (!apiKey) return;
 
-            const activeJobs = state.batchJobs.filter(j =>
-                j.status === 'JOB_STATE_PENDING' || j.status === 'JOB_STATE_RUNNING'
-            );
+            const activeJobs = state.batchJobs.filter(j => isBatchActive(j.status));
 
             if (activeJobs.length === 0) {
                 stopBatchPolling();
                 return;
             }
 
+            console.log(`Polling ${activeJobs.length} active batch job(s)...`);
             for (const job of activeJobs) {
+                console.log(`  Polling job: ${job.batchName} (status: ${job.status})`);
                 // Auto-timeout jobs older than 25 hours
                 if (Date.now() - job.createdAt > 25 * 60 * 60 * 1000) {
                     job.status = 'JOB_STATE_FAILED';
@@ -8732,15 +8750,15 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     if (newStatus !== job.status) {
                         job.status = newStatus;
 
-                        if ((newStatus === 'JOB_STATE_SUCCEEDED' || opData.done) && !job.resultsProcessed) {
+                        if ((isBatchDone(newStatus) || opData.done) && !job.resultsProcessed) {
                             job.completedAt = Date.now();
                             // Results may be in opData.response or need to be downloaded
                             await extractBatchResults(job, opData);
-                        } else if (newStatus === 'JOB_STATE_FAILED') {
+                        } else if (isBatchFailed(newStatus)) {
                             job.completedAt = Date.now();
                             job.error = opData.error?.message || batchMeta.error?.message || 'Batch job failed';
                             addNotification('error', 'Batch Failed', `"${job.displayName}" failed: ${job.error}`, null);
-                        } else if (newStatus === 'JOB_STATE_CANCELLED') {
+                        } else if (isBatchCancelled(newStatus)) {
                             job.completedAt = Date.now();
                         }
 
@@ -8760,6 +8778,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             try {
                 // Check if results are inline in the operation response
+                console.log('Extracting batch results. opData keys:', Object.keys(opData));
+                console.log('opData.response keys:', opData.response ? Object.keys(opData.response) : 'none');
+                console.log('Full opData:', JSON.stringify(opData).substring(0, 2000));
                 const batchResponse = opData.response || opData;
                 const inlinedResponses = batchResponse.inlinedResponses || batchResponse.dest?.inlinedResponses || [];
 
@@ -8852,7 +8873,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         async function cancelBatchJob(jobId) {
             const job = state.batchJobs.find(j => j.id === jobId);
-            if (!job || (job.status !== 'JOB_STATE_PENDING' && job.status !== 'JOB_STATE_RUNNING')) return;
+            if (!job || !isBatchActive(job.status)) return;
 
             const apiKey = apiKeyInput.value.trim();
             try {
@@ -8918,9 +8939,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function updateReviewUI() {
             const count = state.reviewItems.length;
-            const activeBatchCount = state.batchJobs.filter(j =>
-                j.status === 'JOB_STATE_PENDING' || j.status === 'JOB_STATE_RUNNING'
-            ).length;
+            const activeBatchCount = state.batchJobs.filter(j => isBatchActive(j.status)).length;
 
             // Update badge (include active batch jobs in count)
             const badgeCount = count + activeBatchCount;
@@ -9003,21 +9022,24 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 let statusClass, statusLabel;
                 switch (job.status) {
-                    case 'JOB_STATE_PENDING':
-                        statusClass = 'pending'; statusLabel = 'Pending'; break;
-                    case 'JOB_STATE_RUNNING':
-                        statusClass = 'processing'; statusLabel = 'Processing'; break;
-                    case 'JOB_STATE_SUCCEEDED':
-                        statusClass = 'completed'; statusLabel = 'Completed'; break;
-                    case 'JOB_STATE_FAILED':
-                        statusClass = 'failed'; statusLabel = 'Failed'; break;
-                    case 'JOB_STATE_CANCELLED':
-                        statusClass = 'cancelled'; statusLabel = 'Cancelled'; break;
-                    default:
-                        statusClass = 'pending'; statusLabel = job.status;
+                    default: {
+                        if (isBatchActive(job.status)) {
+                            const isRunning = job.status.includes('RUNNING');
+                            statusClass = isRunning ? 'processing' : 'pending';
+                            statusLabel = isRunning ? 'Processing' : 'Pending';
+                        } else if (isBatchDone(job.status)) {
+                            statusClass = 'completed'; statusLabel = 'Completed';
+                        } else if (isBatchFailed(job.status)) {
+                            statusClass = 'failed'; statusLabel = 'Failed';
+                        } else if (isBatchCancelled(job.status)) {
+                            statusClass = 'cancelled'; statusLabel = 'Cancelled';
+                        } else {
+                            statusClass = 'pending'; statusLabel = job.status;
+                        }
+                    }
                 }
 
-                const isActive = job.status === 'JOB_STATE_PENDING' || job.status === 'JOB_STATE_RUNNING';
+                const isActive = isBatchActive(job.status);
 
                 // ETA: Google guarantees results within 24h, most complete much sooner
                 let etaHtml = '';
@@ -9037,7 +9059,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             <div class="batch-job-title">${job.displayName}</div>
                             <div class="batch-job-meta">
                                 <span class="batch-job-status ${statusClass}">
-                                    ${job.status === 'JOB_STATE_RUNNING' ? '<span class="queue-status-spinner"></span>' : ''}
+                                    ${job.status.includes('RUNNING') ? '<span class="queue-status-spinner"></span>' : ''}
                                     ${statusLabel}
                                 </span>
                                 <span>${job.requestCount} image${job.requestCount !== 1 ? 's' : ''}</span>
