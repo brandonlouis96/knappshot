@@ -6704,8 +6704,39 @@
                         renderCollections();
                     }
                     if (settings.batchJobs) {
-                        state.batchJobs = settings.batchJobs;
-                        // Don't save to localStorage - cloud is source of truth when signed in
+                        // Filter out previously dismissed jobs from cloud data
+                        const dismissedIds = new Set(Storage.get('dismissedBatchJobIds', []));
+                        const cloudJobs = settings.batchJobs.filter(j => !dismissedIds.has(j.id));
+
+                        // Merge local and cloud batch jobs
+                        const localJobMap = new Map(state.batchJobs.map(j => [j.id, j]));
+                        const cloudJobMap = new Map(cloudJobs.map(j => [j.id, j]));
+                        const merged = [];
+
+                        // For jobs in both: prefer local if it has more progress (resultsProcessed),
+                        // otherwise use cloud version
+                        for (const [id, localJob] of localJobMap) {
+                            const cloudJob = cloudJobMap.get(id);
+                            if (cloudJob) {
+                                merged.push(localJob.resultsProcessed && !cloudJob.resultsProcessed ? localJob : cloudJob);
+                            } else {
+                                merged.push(localJob); // local-only job
+                            }
+                        }
+                        // Add cloud-only jobs (not in local, not dismissed)
+                        for (const [id, cloudJob] of cloudJobMap) {
+                            if (!localJobMap.has(id)) {
+                                merged.push(cloudJob);
+                            }
+                        }
+
+                        const changed = merged.length !== settings.batchJobs.length ||
+                            merged.some(j => !cloudJobMap.has(j.id));
+                        state.batchJobs = merged;
+                        if (changed) {
+                            saveBatchJobs();
+                        }
+                        updateReviewUI();
                     }
                     // Restore model dropdown selections from cloud
                     if (settings.imageModelIndex !== undefined && settings.imageModelIndex < apiEndpointInput.options.length) {
@@ -6775,11 +6806,23 @@
                 const preLoginLocalGallery = Storage.get('gallery', []);
                 const preLoginLocalProducts = Storage.get('products', []);
                 const preLoginLocalPrompts = Storage.get('prompts', []);
+                // Capture local batch jobs — they may not have synced to cloud yet
+                const preLoginLocalBatchJobs = Storage.get('batchJobs', []);
 
                 showSyncIndicator('Syncing data...');
 
                 // Load all data from cloud (settings, products, prompts, etc.)
                 await loadAllDataFromCloud();
+
+                // Re-merge local batch jobs that may have been lost during cloud load
+                if (preLoginLocalBatchJobs.length > 0) {
+                    const currentIds = new Set(state.batchJobs.map(j => j.id));
+                    const missing = preLoginLocalBatchJobs.filter(j => !currentIds.has(j.id));
+                    if (missing.length > 0) {
+                        state.batchJobs = [...missing, ...state.batchJobs];
+                        saveBatchJobs();
+                    }
+                }
 
                 // Load gallery from cloud
                 state.gallery = await loadGalleryFromCloud();
@@ -6789,6 +6832,9 @@
 
                 // Start polling for any pending batch jobs from cloud
                 startBatchPolling();
+
+                // Final UI refresh to ensure batch jobs are rendered correctly
+                updateReviewUI();
 
                 showSyncIndicator('Synced!', false);
 
@@ -8485,9 +8531,13 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             return match ? `models/${match[1]}` : null;
         }
 
-        function getGenerationConfig() {
+        function getGenerationConfig(forBatch = false) {
             const endpoint = apiEndpointInput.value;
             if (endpoint.includes('flash-image-preview')) {
+                // Batch API requires 'TEXT' in responseModalities and does not support thinkingConfig
+                if (forBatch) {
+                    return { responseModalities: ['IMAGE', 'TEXT'] };
+                }
                 const selected = apiEndpointInput.options[apiEndpointInput.selectedIndex];
                 const level = selected?.dataset?.thinking || 'high';
                 const config = { responseModalities: ['IMAGE'] };
@@ -8497,6 +8547,20 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 return config;
             }
             return { responseModalities: ['IMAGE', 'TEXT'] };
+        }
+
+        function estimateBatchCost(job, successCount) {
+            const isFlash = (job.model || '').includes('flash');
+            const res = job.resolution || '1K';
+            const count = successCount || job.requestCount || 0;
+
+            const flashImageCost = { '1K': 0.067, '2K': 0.101, '4K': 0.151 };
+            const proImageCost = { '1K': 0.134, '2K': 0.134, '4K': 0.24 };
+            const perImage = isFlash ? (flashImageCost[res] || 0.067) : (proImageCost[res] || 0.134);
+
+            // Batch API is 50% cheaper
+            const total = count * perImage * 0.5;
+            return total;
         }
 
         function estimateCost(usageMetadata) {
@@ -8581,7 +8645,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     inlineRequests.push({
                         request: {
                             contents: [{ parts }],
-                            generationConfig: getGenerationConfig()
+                            generationConfig: getGenerationConfig(true)
                         }
                     });
                 }
@@ -8604,7 +8668,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         inlineRequests.push({
                             request: {
                                 contents: [{ parts }],
-                                generationConfig: getGenerationConfig()
+                                generationConfig: getGenerationConfig(true)
                             }
                         });
                     }
@@ -8654,6 +8718,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
 
                 const batchData = await response.json();
+                console.log('Batch submission response:', JSON.stringify(batchData, null, 2));
 
                 const job = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -8666,6 +8731,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     resultsProcessed: false,
                     prompt: prompt,
                     model: modelId,
+                    resolution: state.selectedResolution || '1K',
                     error: null
                 };
 
@@ -8720,6 +8786,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
 
             for (const job of activeJobs) {
+                const elapsedMin = Math.round((Date.now() - job.createdAt) / 60000);
+
                 // Auto-timeout jobs older than 25 hours
                 if (Date.now() - job.createdAt > 25 * 60 * 60 * 1000) {
                     job.status = 'JOB_STATE_FAILED';
@@ -8728,6 +8796,18 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     saveBatchJobs();
                     updateReviewUI();
                     continue;
+                }
+
+                // Warn about potentially stuck jobs (10+ minutes with no progress)
+                if (elapsedMin >= 10 && !job._stuckWarned) {
+                    const isFlash = (job.model || '').includes('flash');
+                    if (isFlash) {
+                        console.warn(`Batch job ${job.id} (Flash) has been ${job.status} for ${elapsedMin}m. Flash batch processing may be slow due to high demand on Google's servers.`);
+                        addNotification('batch_slow', 'Batch Job Slow',
+                            `Your Flash batch has been processing for ${elapsedMin}+ minutes. This is a known issue with Google's batch API for Flash models. You can cancel and retry, or switch to Gemini 3 Pro for faster batch processing.`,
+                            null);
+                        job._stuckWarned = true;
+                    }
                 }
 
                 try {
@@ -8741,6 +8821,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     }
 
                     const opData = await response.json();
+                    console.log(`Poll ${job.model} [${elapsedMin}m]:`, opData.done, opData.metadata?.state);
                     // The response is an Operation object with metadata.state
                     const batchMeta = opData.metadata || {};
                     const newStatus = batchMeta.state || (opData.done ? 'JOB_STATE_SUCCEEDED' : job.status);
@@ -8860,19 +8941,22 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
 
             job.resultsProcessed = true;
+            job.successCount = successCount;
+            job.estimatedCost = estimateBatchCost(job, successCount);
             saveBatchJobs();
 
             if (successCount > 0) {
+                const costStr = job.estimatedCost > 0 ? ` — est. cost: $${job.estimatedCost.toFixed(4)}` : '';
                 addNotification(
                     'batch_complete',
                     'Batch Complete',
-                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${failCount > 0 ? ` (${failCount} failed)` : ''}`,
+                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${failCount > 0 ? ` (${failCount} failed)` : ''}${costStr}`,
                     'View in Review'
                 );
                 pulseReviewBadge();
                 showToast(
                     'Batch Complete!',
-                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${failCount > 0 ? ` (${failCount} failed)` : ''}`,
+                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${failCount > 0 ? ` (${failCount} failed)` : ''}${costStr}`,
                     'View in Review'
                 );
             }
@@ -8906,6 +8990,12 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function dismissBatchJob(jobId) {
             state.batchJobs = state.batchJobs.filter(j => j.id !== jobId);
+            // Track dismissed IDs so cloud sync doesn't resurrect them
+            const dismissed = Storage.get('dismissedBatchJobIds', []);
+            if (!dismissed.includes(jobId)) {
+                dismissed.push(jobId);
+                Storage.set('dismissedBatchJobIds', dismissed);
+            }
             saveBatchJobs();
             updateReviewUI();
         }
@@ -8935,7 +9025,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function saveReviewItems() {
-            Storage.setIfOffline('reviewItems', state.reviewItems);
+            // Always save to localStorage (review items must persist across refreshes like batch jobs)
+            Storage.set('reviewItems', state.reviewItems);
             scheduleCloudSync();
         }
 
@@ -9048,6 +9139,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
 
                 const isActive = isBatchActive(job.status);
+                const isDone = isBatchDone(job.status);
 
                 // ETA: Google guarantees results within 24h, most complete much sooner
                 let etaHtml = '';
@@ -9058,6 +9150,18 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     } else {
                         const remainingHours = Math.max(1, Math.ceil(24 - elapsedHours));
                         etaHtml = `<span class="batch-job-eta">Submitted ${formatElapsedTime(elapsed)} - up to ~${remainingHours}h remaining</span>`;
+                    }
+                }
+
+                // Cost display for completed jobs
+                let costHtml = '';
+                if (isDone && job.estimatedCost > 0) {
+                    costHtml = `<span style="color:var(--success-color, #4ade80); font-weight:500">est. $${job.estimatedCost.toFixed(4)}</span>`;
+                } else if (isDone && !job.estimatedCost) {
+                    // Calculate cost retroactively for older jobs that don't have it stored
+                    const retroCost = estimateBatchCost(job, job.successCount || job.requestCount);
+                    if (retroCost > 0) {
+                        costHtml = `<span style="color:var(--success-color, #4ade80); font-weight:500">est. $${retroCost.toFixed(4)}</span>`;
                     }
                 }
 
@@ -9073,6 +9177,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                 <span>${job.requestCount} image${job.requestCount !== 1 ? 's' : ''}</span>
                                 <span>${dateStr}</span>
                                 ${job.model ? `<span style="opacity:0.7">${job.model.replace('models/', '').replace('gemini-', '').replace('-preview', '')}</span>` : ''}
+                                ${costHtml}
                             </div>
                             ${etaHtml}
                             <div class="batch-job-prompt">${job.prompt || 'No prompt'}</div>
