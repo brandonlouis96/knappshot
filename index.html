@@ -5298,6 +5298,18 @@
                         <button class="option-btn aspect-btn" data-value="2:3">2:3
                             <div class="aspect-tooltip"><div class="aspect-preview" style="width: 30px; height: 45px;"></div><span>Portrait</span></div>
                         </button>
+                        <button class="option-btn aspect-btn" data-value="8:1">8:1
+                            <div class="aspect-tooltip"><div class="aspect-preview" style="width: 56px; height: 7px;"></div><span>Ultra Wide</span></div>
+                        </button>
+                        <button class="option-btn aspect-btn" data-value="1:8">1:8
+                            <div class="aspect-tooltip"><div class="aspect-preview" style="width: 7px; height: 56px;"></div><span>Ultra Tall</span></div>
+                        </button>
+                        <button class="option-btn aspect-btn" data-value="4:1">4:1
+                            <div class="aspect-tooltip"><div class="aspect-preview" style="width: 52px; height: 13px;"></div><span>Panoramic</span></div>
+                        </button>
+                        <button class="option-btn aspect-btn" data-value="1:4">1:4
+                            <div class="aspect-tooltip"><div class="aspect-preview" style="width: 13px; height: 52px;"></div><span>Tall Banner</span></div>
+                        </button>
                     </div>
                 </div>
                 <div class="option-group">
@@ -7806,7 +7818,11 @@
                 '3:4': 'Portrait (3:4) - portraits, Pinterest',
                 '4:5': 'Portrait (4:5) - ideal for Instagram posts',
                 '3:2': 'Landscape (3:2) - DSLR photography',
-                '2:3': 'Portrait (2:3) - magazine covers, posters'
+                '2:3': 'Portrait (2:3) - magazine covers, posters',
+                '8:1': 'Ultra Wide (8:1) - banners, scrolling headers',
+                '1:8': 'Ultra Tall (1:8) - vertical banners, skyscrapers',
+                '4:1': 'Panoramic (4:1) - wide banners, hero images',
+                '1:4': 'Tall Banner (1:4) - vertical ads, side banners'
             };
             userMessage += `\n\nREQUIRED ASPECT RATIO: ${aspectRatioDescriptions[state.selectedAspectRatio] || 'Square (1:1)'}
 Important: The Tech Specs section MUST use this exact aspect ratio.`;
@@ -8593,7 +8609,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const endpointUrl = apiEndpointInput.value.trim();
             const modelName = extractModelName(endpointUrl);
             const systemInstructions = $('systemInstructions').value.trim();
-
             if (!modelName) {
                 showStatus('Could not determine model from endpoint', 'error');
                 return;
@@ -8602,7 +8617,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const aspectMap = {
                 '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)',
                 '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)',
-                '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)'
+                '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)',
+                '8:1': 'ultra-wide (8:1)', '1:8': 'ultra-tall (1:8)',
+                '4:1': 'panoramic (4:1)', '1:4': 'tall banner (1:4)'
             };
             const resolutionMap = { '1K': '1024x1024 pixels', '2K': '2048x2048 pixels', '4K': '4096x4096 pixels' };
 
@@ -8625,12 +8642,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             fullPrompt += `\n\nAspect ratio: ${aspectMap[state.selectedAspectRatio] || 'square (1:1)'}`;
             fullPrompt += `\nResolution: ${resolutionMap[state.selectedResolution] || '1024x1024 pixels'}`;
 
-            // Build inlineRequests array
-            const inlineRequests = [];
+            // Build requests array
+            const requests = [];
             const isTextToImage = imagesToProcess.length === 0;
 
             if (isTextToImage) {
-                // Text-to-image: no input image, just prompt
                 for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
                     const parts = [];
                     if (state.referenceImageBase64) {
@@ -8642,7 +8658,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         });
                     }
                     parts.push({ text: fullPrompt });
-                    inlineRequests.push({
+
+                    requests.push({
                         request: {
                             contents: [{ parts }],
                             generationConfig: getGenerationConfig(true)
@@ -8650,7 +8667,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     });
                 }
             } else {
-                // Image-to-image: include input image(s)
                 for (const imgData of imagesToProcess) {
                     for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
                         const parts = [
@@ -8665,7 +8681,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                 }
                             });
                         }
-                        inlineRequests.push({
+
+                        requests.push({
                             request: {
                                 contents: [{ parts }],
                                 generationConfig: getGenerationConfig(true)
@@ -8675,21 +8692,19 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
             }
 
-            // Check payload size (inline requests must be under 20MB)
-            const payloadSize = JSON.stringify(inlineRequests).length;
+            // Check payload size
+            const payloadSize = JSON.stringify(requests).length;
             if (payloadSize > 19 * 1024 * 1024) {
                 showStatus('Batch too large (>20MB). Reduce image count or resolution.', 'error');
                 return;
             }
 
             const displayName = `KnappShot batch - ${new Date().toLocaleString()}`;
+            const modelId = modelName.replace('models/', '');
 
             try {
                 showStatus('Submitting batch job...', 'loading');
                 submitBtn.disabled = true;
-
-                // Extract model ID from the full model path (e.g., "models/gemini-3-pro-image-preview" -> "gemini-3-pro-image-preview")
-                const modelId = modelName.replace('models/', '');
 
                 const response = await fetch(
                     `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
@@ -8701,7 +8716,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                 display_name: displayName,
                                 input_config: {
                                     requests: {
-                                        requests: inlineRequests.map((req, i) => ({
+                                        requests: requests.map((req, i) => ({
                                             request: req.request,
                                             metadata: { key: `request-${i + 1}` }
                                         }))
@@ -8718,6 +8733,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
 
                 const batchData = await response.json();
+
                 console.log('Batch submission response:', JSON.stringify(batchData, null, 2));
 
                 const job = {
@@ -8727,7 +8743,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     status: batchData.metadata?.state || batchData.done === false ? 'JOB_STATE_PENDING' : 'JOB_STATE_SUCCEEDED',
                     createdAt: Date.now(),
                     completedAt: null,
-                    requestCount: inlineRequests.length,
+                    requestCount: requests.length,
                     resultsProcessed: false,
                     prompt: prompt,
                     model: modelId,
@@ -8740,8 +8756,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 updateReviewUI();
                 startBatchPolling();
 
-                showStatus(`Batch submitted! ${inlineRequests.length} image${inlineRequests.length !== 1 ? 's' : ''} queued for async processing (50% cheaper).`, 'success');
-                addNotification('batch_submitted', 'Batch Submitted', `${inlineRequests.length} image${inlineRequests.length !== 1 ? 's' : ''} submitted for batch processing. Results within 24 hours.`, 'View Status');
+                showStatus(`Batch submitted! ${requests.length} image${requests.length !== 1 ? 's' : ''} queued for async processing (50% cheaper).`, 'success');
+                addNotification('batch_submitted', 'Batch Submitted', `${requests.length} image${requests.length !== 1 ? 's' : ''} submitted for batch processing. Results within 24 hours.`, 'View Status');
                 pulseReviewBadge();
 
             } catch (error) {
@@ -10431,7 +10447,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 </div>
             `;
 
-            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)' };
+            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)', '8:1': 'ultra-wide (8:1)', '1:8': 'ultra-tall (1:8)', '4:1': 'panoramic (4:1)', '1:4': 'tall banner (1:4)' };
             const resMap = { '1K': '1024px', '2K': '2048px', '4K': '4096px' };
 
             // Build full prompt with system instructions
