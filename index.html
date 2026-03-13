@@ -5098,6 +5098,9 @@
                         <select id="apiEndpoint">
                             <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent">Gemini 3 Pro Image Preview</option>
                             <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high">Gemini 3.1 Flash (Thinking - High)</option>
+                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text">Gemini 3.1 Flash (Thinking - High, Images + Text)</option>
+                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text" data-grounding="web">Gemini 3.1 Flash (Thinking - High, Images + Text, Google Search)</option>
+                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text" data-grounding="web-image">Gemini 3.1 Flash (Thinking - High, Images + Text, Google + Image Search)</option>
                             <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="none">Gemini 3.1 Flash (Default Thinking)</option>
                         </select>
                     </div>
@@ -8556,13 +8559,28 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
                 const selected = apiEndpointInput.options[apiEndpointInput.selectedIndex];
                 const level = selected?.dataset?.thinking || 'high';
-                const config = { responseModalities: ['IMAGE'] };
+                const outputMode = selected?.dataset?.output || 'image';
+                const modalities = outputMode === 'image-text' ? ['IMAGE', 'TEXT'] : ['IMAGE'];
+                const config = { responseModalities: modalities };
                 if (level !== 'none') {
                     config.thinkingConfig = { thinkingLevel: level };
                 }
                 return config;
             }
             return { responseModalities: ['IMAGE', 'TEXT'] };
+        }
+
+        function getTools() {
+            const selected = apiEndpointInput.options[apiEndpointInput.selectedIndex];
+            const grounding = selected?.dataset?.grounding;
+            if (!grounding) return null;
+            if (grounding === 'web') {
+                return [{ google_search: {} }];
+            }
+            if (grounding === 'web-image') {
+                return [{ googleSearch: { searchTypes: { webSearch: {}, imageSearch: {} } } }];
+            }
+            return null;
         }
 
         function estimateBatchCost(job, successCount) {
@@ -10493,13 +10511,17 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         }
                         parts.push({ text: fullPrompt });
 
+                        const requestBody = {
+                            contents: [{ parts }],
+                            generationConfig: getGenerationConfig()
+                        };
+                        const tools = getTools();
+                        if (tools) requestBody.tools = tools;
+
                         const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts }],
-                                generationConfig: getGenerationConfig()
-                            })
+                            body: JSON.stringify(requestBody)
                         });
 
                         if (!response.ok) throw new Error(`API Error: ${response.status}`);
@@ -10536,13 +10558,17 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             }
                             parts.push({ text: fullPrompt });
 
+                            const editBody = {
+                                contents: [{ parts }],
+                                generationConfig: getGenerationConfig()
+                            };
+                            const editTools = getTools();
+                            if (editTools) editBody.tools = editTools;
+
                             const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    contents: [{ parts }],
-                                    generationConfig: getGenerationConfig()
-                                })
+                                body: JSON.stringify(editBody)
                             });
 
                             if (!response.ok) throw new Error(`API Error: ${response.status}`);
@@ -12839,13 +12865,17 @@ Generate the edited version of the first image.`;
                     { text: fullPrompt }
                 ];
 
+                const maskBody = {
+                    contents: [{ parts }],
+                    generationConfig: getGenerationConfig()
+                };
+                const maskTools = getTools();
+                if (maskTools) maskBody.tools = maskTools;
+
                 const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts }],
-                        generationConfig: getGenerationConfig()
-                    })
+                    body: JSON.stringify(maskBody)
                 });
 
                 if (!response.ok) throw new Error(`API Error: ${response.status}`);
