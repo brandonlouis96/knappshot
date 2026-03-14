@@ -500,6 +500,67 @@
         .upload-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.7; }
         .upload-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
         .upload-text strong { color: var(--color-purple-light); }
+        .main-images-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .main-image-thumb {
+            position: relative;
+            display: inline-block;
+        }
+        .main-image-thumb img {
+            max-height: 120px;
+            max-width: 150px;
+            border-radius: 10px;
+            cursor: zoom-in;
+            object-fit: cover;
+        }
+        .main-image-thumb .main-remove-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--color-red);
+            color: #fff;
+            border: none;
+            font-size: 13px;
+            line-height: 22px;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        .main-add-more-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 10px;
+            border: 2px dashed var(--border-accent);
+            background: var(--bg-secondary);
+            color: var(--text-tertiary);
+            font-size: 1.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .main-add-more-btn:hover {
+            border-color: var(--color-purple);
+            color: var(--color-purple);
+        }
+        .main-count-label {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 6px;
+        }
 
         /* Reference Image Area */
         .ref-upload-area {
@@ -513,6 +574,63 @@
         .ref-upload-area:hover { border-color: var(--color-purple); }
         .ref-upload-area img { max-height: 80px; border-radius: 8px; }
         .ref-upload-area .ref-label { font-size: 0.8rem; color: var(--text-tertiary); }
+        .ref-images-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+        .ref-image-thumb {
+            position: relative;
+            display: inline-block;
+        }
+        .ref-image-thumb img {
+            max-height: 70px;
+            border-radius: 8px;
+            cursor: zoom-in;
+        }
+        .ref-image-thumb .ref-remove-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--color-red);
+            color: #fff;
+            border: none;
+            font-size: 12px;
+            line-height: 20px;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ref-add-more-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            border: 1px dashed var(--border-accent);
+            background: var(--bg-secondary);
+            color: var(--text-tertiary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .ref-add-more-btn:hover {
+            border-color: var(--color-purple);
+            color: var(--color-purple);
+        }
+        .ref-count-label {
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
 
         /* Product Image Loader */
         .product-image-loader {
@@ -3373,6 +3491,59 @@
             color: #fff;
         }
 
+        .gallery-picker-item.selected {
+            border-color: var(--color-purple);
+            box-shadow: 0 0 0 2px var(--color-purple);
+        }
+        .gallery-picker-item.selected::after {
+            content: '\2713';
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            background: var(--color-purple);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 2;
+        }
+        .gallery-picker-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            margin-top: 12px;
+            border-top: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+        .gallery-picker-selection-count {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .gallery-picker-done-btn {
+            padding: 8px 24px;
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .gallery-picker-done-btn:hover {
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+        .gallery-picker-done-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Upload Options Popup */
         .upload-options-popup {
             position: absolute;
@@ -5127,7 +5298,7 @@
                         <div class="upload-icon">🖼️</div>
                         <div class="upload-text">
                             <strong>Drop, paste, or click</strong><br>
-                            to upload an image
+                            to upload images (up to 5)
                         </div>
                         <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
                         <div class="upload-options-popup" id="mainUploadOptions">
@@ -5148,10 +5319,10 @@
                         </select>
                     </div>
 
-                    <!-- Reference Image -->
+                    <!-- Reference Images -->
                     <div class="ref-upload-area" id="refUploadArea">
-                        <div class="ref-label">+ Add Style Reference (optional)</div>
-                        <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif">
+                        <div class="ref-label">+ Add Style References (optional, up to 5)</div>
+                        <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
                         <div class="upload-options-popup" id="refUploadOptions">
                             <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
                                 <span>💻</span> Upload from Computer
@@ -5666,6 +5837,10 @@
                 <span>🖼️</span>
                 <p>No images in your gallery yet</p>
             </div>
+            <div class="gallery-picker-footer" id="galleryPickerFooter" style="display: none;">
+                <span class="gallery-picker-selection-count" id="galleryPickerCount">0 selected</span>
+                <button class="gallery-picker-done-btn" id="galleryPickerDoneBtn" onclick="confirmGallerySelection()" disabled>Add Selected</button>
+            </div>
         </div>
     </div>
 
@@ -5942,8 +6117,8 @@
             currentImage: null,
             currentImageBase64: null,
             currentImageMimeType: 'image/jpeg',
-            referenceImage: null,
-            referenceImageBase64: null,
+            additionalMainImages: [], // Array of {dataUrl, base64, mimeType}
+            referenceImages: [], // Array of {dataUrl, base64, mimeType}
             batchImages: [],
             generatedImages: [],
             originalImage: null,
@@ -6067,20 +6242,21 @@
         function getAvailableImages() {
             const images = [];
             if (state.currentImage) {
+                const totalMain = 1 + state.additionalMainImages.length;
                 images.push({
                     id: 'main-image',
-                    name: 'Main Image',
-                    desc: 'The uploaded image to edit',
+                    name: `Main Image${totalMain > 1 ? 's' : ''} (${totalMain})`,
+                    desc: totalMain > 1 ? 'The uploaded images to edit' : 'The uploaded image to edit',
                     icon: state.currentImage,
                     tag: '@main-image'
                 });
             }
-            if (state.referenceImage) {
+            if (state.referenceImages.length > 0) {
                 images.push({
                     id: 'reference-image',
-                    name: 'Reference Image',
-                    desc: 'Style reference image',
-                    icon: state.referenceImage,
+                    name: `Reference Image${state.referenceImages.length > 1 ? 's' : ''} (${state.referenceImages.length})`,
+                    desc: 'Style reference image(s)',
+                    icon: state.referenceImages[0].dataUrl,
                     tag: '@reference'
                 });
             }
@@ -7001,13 +7177,13 @@
         let currentUploadTarget = null; // 'main' or 'ref'
 
         uploadArea.addEventListener('click', (e) => {
-            // Don't show options if clicking on clear button or if image is already displayed
-            if (e.target.closest('.clear-btn') || e.target.closest('.upload-option-btn')) return;
-            if (state.currentImage) return; // If image exists, don't show options
+            if (e.target.closest('.clear-btn') || e.target.closest('.upload-option-btn') || e.target.closest('.main-remove-btn') || e.target.closest('.main-add-more-btn')) return;
+            const totalImages = (state.currentImage ? 1 : 0) + state.additionalMainImages.length;
+            if (totalImages >= MAX_MAIN_IMAGES) return;
+            if (totalImages > 0) return; // Use + button to add more
 
             const popup = $('mainUploadOptions');
             popup.classList.toggle('show');
-            // Hide ref popup if open
             $('refUploadOptions')?.classList.remove('show');
         });
         uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
@@ -7054,9 +7230,103 @@
             $('refUploadOptions')?.classList.remove('show');
         }
 
+        const MAX_MAIN_IMAGES = 5;
+        const MAX_REF_IMAGES = 5;
+
+        function addReferenceImage(result) {
+            if (state.referenceImages.length >= MAX_REF_IMAGES) {
+                showStatus(`Maximum ${MAX_REF_IMAGES} reference images allowed`, 'error');
+                return false;
+            }
+            state.referenceImages.push({
+                dataUrl: result.dataUrl,
+                base64: result.base64,
+                mimeType: result.mimeType || 'image/jpeg'
+            });
+            return true;
+        }
+
+        function removeRefImage(index) {
+            state.referenceImages.splice(index, 1);
+            renderRefUploadArea();
+        }
+
+        function renderRefUploadArea() {
+            if (state.referenceImages.length === 0) {
+                refUploadArea.innerHTML = `
+                    <div class="ref-label">+ Add Style References (optional, up to ${MAX_REF_IMAGES})</div>
+                    <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                    <div class="upload-options-popup" id="refUploadOptions">
+                        <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                            <span>💻</span> Upload from Computer
+                        </button>
+                        <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                            <span>🖼️</span> Select from Gallery
+                        </button>
+                        <button class="upload-option-btn" onclick="pasteToRef()">
+                            <span>📋</span> Paste from Clipboard
+                        </button>
+                    </div>
+                `;
+            } else {
+                let thumbsHtml = state.referenceImages.map((img, i) => `
+                    <div class="ref-image-thumb">
+                        <img src="${img.dataUrl}" alt="Reference ${i + 1}" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
+                        <button class="ref-remove-btn" onclick="removeRefImage(${i})" title="Remove">&times;</button>
+                    </div>
+                `).join('');
+
+                if (state.referenceImages.length < MAX_REF_IMAGES) {
+                    thumbsHtml += `<button class="ref-add-more-btn" onclick="event.stopPropagation(); $('refUploadOptions')?.classList.toggle('show')" title="Add more references">+</button>`;
+                }
+
+                refUploadArea.innerHTML = `
+                    <div class="ref-images-grid">${thumbsHtml}</div>
+                    <div class="ref-count-label">${state.referenceImages.length}/${MAX_REF_IMAGES} reference images</div>
+                    <button class="clear-btn" onclick="clearRef(event)">Clear All</button>
+                    <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                    <div class="upload-options-popup" id="refUploadOptions">
+                        <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
+                            <span>💻</span> Upload from Computer
+                        </button>
+                        <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
+                            <span>🖼️</span> Select from Gallery
+                        </button>
+                        <button class="upload-option-btn" onclick="pasteToRef()">
+                            <span>📋</span> Paste from Clipboard
+                        </button>
+                    </div>
+                `;
+            }
+            // Re-attach file input listener
+            const newRefInput = $('refFileInput');
+            if (newRefInput) {
+                newRefInput.addEventListener('change', handleRefFileChange);
+            }
+        }
+
+        async function handleRefFileChange(e) {
+            const files = Array.from(e.target.files);
+            for (const file of files) {
+                if (state.referenceImages.length >= MAX_REF_IMAGES) break;
+                const result = await processImageFile(file);
+                if (result) {
+                    addReferenceImage(result);
+                }
+            }
+            renderRefUploadArea();
+            if (files.length > 0) {
+                showStatus(`${Math.min(files.length, MAX_REF_IMAGES)} reference image(s) loaded!`, 'success');
+            }
+        }
+
         // Paste from clipboard for reference image
         async function pasteToRef() {
             $('refUploadOptions')?.classList.remove('show');
+            if (state.referenceImages.length >= MAX_REF_IMAGES) {
+                showStatus(`Maximum ${MAX_REF_IMAGES} reference images allowed`, 'error');
+                return;
+            }
             try {
                 const clipboardItems = await navigator.clipboard.read();
                 for (const item of clipboardItems) {
@@ -7066,23 +7336,8 @@
                         const file = new File([blob], 'pasted-image.png', { type: imageType });
                         const result = await processImageFile(file);
                         if (result) {
-                            state.referenceImage = result.dataUrl;
-                            state.referenceImageBase64 = result.base64;
-                            refUploadArea.innerHTML = `
-                                <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
-                                <button class="clear-btn" onclick="clearRef(event)">Clear</button>
-                                <div class="upload-options-popup" id="refUploadOptions">
-                                    <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
-                                        <span>💻</span> Upload from Computer
-                                    </button>
-                                    <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
-                                        <span>🖼️</span> Select from Gallery
-                                    </button>
-                                    <button class="upload-option-btn" onclick="pasteToRef()">
-                                        <span>📋</span> Paste from Clipboard
-                                    </button>
-                                </div>
-                            `;
+                            addReferenceImage(result);
+                            renderRefUploadArea();
                             showStatus('Reference image pasted!', 'success');
                             return;
                         }
@@ -7155,25 +7410,35 @@
         });
 
         // Gallery picker functions
-        let galleryPickerFilter = null; // Currently selected collection filter
-        let galleryPickerItems = []; // Filtered items for selection
+        let galleryPickerFilter = null;
+        let galleryPickerItems = [];
+        let galleryPickerSelected = new Set(); // Track selected indices for multi-select
 
         function openGalleryPicker(target) {
             currentUploadTarget = target;
-            galleryPickerFilter = null; // Reset filter
+            galleryPickerFilter = null;
+            galleryPickerSelected.clear();
+
             const modal = $('galleryPickerModal');
             const title = $('galleryPickerTitle');
 
-            title.textContent = target === 'ref' ? 'Select Style Reference from Gallery' : 'Select Image from Gallery';
+            // Determine max selectable
+            let maxSelect;
+            if (target === 'ref') {
+                maxSelect = MAX_REF_IMAGES - state.referenceImages.length;
+                title.textContent = `Select Style References from Gallery (up to ${maxSelect} more)`;
+            } else {
+                const currentMainCount = (state.currentImage ? 1 : 0) + state.additionalMainImages.length;
+                maxSelect = MAX_MAIN_IMAGES - currentMainCount;
+                title.textContent = `Select Images from Gallery (up to ${maxSelect} more)`;
+            }
 
-            // Hide upload options popups
             $('mainUploadOptions')?.classList.remove('show');
             $('refUploadOptions')?.classList.remove('show');
 
-            // Render collection filters
             renderGalleryPickerFilters();
-            // Render gallery items
             renderGalleryPickerItems();
+            updateGalleryPickerFooter();
 
             modal.classList.add('active');
         }
@@ -7182,7 +7447,6 @@
             const filters = $('galleryPickerFilters');
             if (!filters) return;
 
-            // Build filter buttons: All + each collection
             let html = `<button class="gallery-picker-filter-btn ${galleryPickerFilter === null ? 'active' : ''}" onclick="filterGalleryPicker(null)">All</button>`;
 
             if (state.collections && state.collections.length > 0) {
@@ -7198,15 +7462,25 @@
 
         function filterGalleryPicker(collectionId) {
             galleryPickerFilter = collectionId;
+            galleryPickerSelected.clear();
             renderGalleryPickerFilters();
             renderGalleryPickerItems();
+            updateGalleryPickerFooter();
+        }
+
+        function getGalleryPickerMaxSelect() {
+            if (currentUploadTarget === 'ref') {
+                return MAX_REF_IMAGES - state.referenceImages.length;
+            } else {
+                const currentMainCount = (state.currentImage ? 1 : 0) + state.additionalMainImages.length;
+                return MAX_MAIN_IMAGES - currentMainCount;
+            }
         }
 
         function renderGalleryPickerItems() {
             const grid = $('galleryPickerGrid');
             const empty = $('galleryPickerEmpty');
 
-            // Filter items by collection if selected
             galleryPickerItems = galleryPickerFilter
                 ? state.gallery.filter(item => item.collectionId === galleryPickerFilter)
                 : [...state.gallery];
@@ -7217,10 +7491,45 @@
             } else {
                 empty.classList.remove('show');
                 grid.innerHTML = galleryPickerItems.map((item, i) => `
-                    <div class="gallery-picker-item" onclick="selectFromGalleryPicker(${i})">
+                    <div class="gallery-picker-item ${galleryPickerSelected.has(i) ? 'selected' : ''}" onclick="toggleGalleryPickerItem(${i})">
                         <img src="${item.src}" alt="Gallery image">
                     </div>
                 `).join('');
+            }
+        }
+
+        function toggleGalleryPickerItem(index) {
+            if (galleryPickerSelected.has(index)) {
+                galleryPickerSelected.delete(index);
+            } else {
+                const maxSelect = getGalleryPickerMaxSelect();
+                if (galleryPickerSelected.size >= maxSelect) {
+                    showStatus(`You can select up to ${maxSelect} more image${maxSelect !== 1 ? 's' : ''}`, 'error');
+                    return;
+                }
+                galleryPickerSelected.add(index);
+            }
+            // Update just the toggled item's class without re-rendering the whole grid
+            const items = $('galleryPickerGrid').children;
+            if (items[index]) {
+                items[index].classList.toggle('selected', galleryPickerSelected.has(index));
+            }
+            updateGalleryPickerFooter();
+        }
+
+        function updateGalleryPickerFooter() {
+            const footer = $('galleryPickerFooter');
+            const count = $('galleryPickerCount');
+            const doneBtn = $('galleryPickerDoneBtn');
+            const selected = galleryPickerSelected.size;
+
+            if (selected > 0) {
+                footer.style.display = 'flex';
+                count.textContent = `${selected} selected`;
+                doneBtn.disabled = false;
+            } else {
+                footer.style.display = 'none';
+                doneBtn.disabled = true;
             }
         }
 
@@ -7228,68 +7537,68 @@
             $('galleryPickerModal').classList.remove('active');
             currentUploadTarget = null;
             galleryPickerFilter = null;
+            galleryPickerSelected.clear();
         }
 
-        async function selectFromGalleryPicker(index) {
-            const item = galleryPickerItems[index];
-            if (!item) return;
+        async function confirmGallerySelection() {
+            const selectedItems = [...galleryPickerSelected].sort((a, b) => a - b).map(i => galleryPickerItems[i]).filter(Boolean);
+            if (selectedItems.length === 0) return;
 
-            if (currentUploadTarget === 'main') {
-                state.currentImage = item.src;
-                state.originalImage = item.src;
-                // Extract base64 data
-                if (item.src.startsWith('data:')) {
-                    const mimeMatch = item.src.match(/^data:([^;]+);/);
-                    state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-                    state.currentImageBase64 = item.src.split(',')[1];
-                    console.log('Gallery selection: Data URL, base64 length:', state.currentImageBase64?.length);
-                } else {
-                    // Firebase URL - need to convert to base64
-                    console.log('Gallery selection: Firebase URL detected, converting to base64...');
-                    showStatus('Loading image...', 'info');
-                    const imageData = await getImageDataFromSource(item.src);
-                    if (imageData) {
-                        state.currentImageMimeType = imageData.mimeType;
-                        state.currentImageBase64 = imageData.base64Data;
-                        console.log('Gallery selection: Converted to base64, length:', state.currentImageBase64?.length);
-                        showStatus('Image loaded!', 'success');
+            const target = currentUploadTarget;
+            closeGalleryPicker();
+
+            showStatus(`Loading ${selectedItems.length} image${selectedItems.length > 1 ? 's' : ''}...`, 'info');
+
+            if (target === 'main') {
+                for (const item of selectedItems) {
+                    const totalMain = (state.currentImage ? 1 : 0) + state.additionalMainImages.length;
+                    if (totalMain >= MAX_MAIN_IMAGES) break;
+
+                    let base64 = null;
+                    let mimeType = 'image/jpeg';
+                    if (item.src.startsWith('data:')) {
+                        const mimeMatch = item.src.match(/^data:([^;]+);/);
+                        mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                        base64 = item.src.split(',')[1];
                     } else {
-                        console.error('Gallery selection: Failed to convert Firebase URL to base64');
-                        state.currentImageMimeType = 'image/jpeg';
-                        state.currentImageBase64 = null;
-                        showStatus('Warning: Could not process image for editing', 'error');
+                        const imageData = await getImageDataFromSource(item.src);
+                        if (imageData) {
+                            base64 = imageData.base64Data;
+                            mimeType = imageData.mimeType;
+                        }
+                    }
+
+                    if (base64) {
+                        if (!state.currentImage) {
+                            state.currentImage = item.src;
+                            state.currentImageBase64 = base64;
+                            state.currentImageMimeType = mimeType;
+                            state.originalImage = item.src;
+                        } else {
+                            state.additionalMainImages.push({ dataUrl: item.src, base64, mimeType });
+                        }
                     }
                 }
-                displayUploadedImage(item.src);
-            } else if (currentUploadTarget === 'ref') {
-                state.referenceImage = item.src;
-                if (item.src.startsWith('data:')) {
-                    state.referenceImageBase64 = item.src.split(',')[1];
-                } else {
-                    // Firebase URL - convert to base64
-                    const imageData = await getImageDataFromSource(item.src);
-                    if (imageData) {
-                        state.referenceImageBase64 = imageData.base64Data;
+                renderMainUploadArea();
+            } else if (target === 'ref') {
+                for (const item of selectedItems) {
+                    if (state.referenceImages.length >= MAX_REF_IMAGES) break;
+
+                    let base64 = null;
+                    if (item.src.startsWith('data:')) {
+                        base64 = item.src.split(',')[1];
+                    } else {
+                        const imageData = await getImageDataFromSource(item.src);
+                        if (imageData) base64 = imageData.base64Data;
+                    }
+                    if (base64) {
+                        addReferenceImage({ dataUrl: item.src, base64, mimeType: 'image/jpeg' });
                     }
                 }
-                refUploadArea.innerHTML = `
-                    <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
-                    <button class="clear-btn" onclick="clearRef(event)">Clear</button>
-                    <div class="upload-options-popup" id="refUploadOptions">
-                        <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
-                            <span>💻</span> Upload from Computer
-                        </button>
-                        <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
-                            <span>🖼️</span> Select from Gallery
-                        </button>
-                        <button class="upload-option-btn" onclick="pasteToRef()">
-                            <span>📋</span> Paste from Clipboard
-                        </button>
-                    </div>
-                `;
+                renderRefUploadArea();
             }
 
-            closeGalleryPicker();
+            showStatus(`${selectedItems.length} image${selectedItems.length > 1 ? 's' : ''} added!`, 'success');
         }
 
         // Check if file is HEIC/HEIF format
@@ -7456,41 +7765,156 @@
                     }
                 }
             } else {
-                let file = files[0];
-                if (file && (file.type.startsWith('image/') || isHeicFile(file))) {
-                    // Convert HEIC if needed
+                const fileArray = Array.from(files).filter(f => f.type.startsWith('image/') || isHeicFile(f));
+                for (const rawFile of fileArray) {
+                    const totalMainImages = 1 + state.additionalMainImages.length;
+                    let file = rawFile;
                     if (isHeicFile(file)) {
                         file = await convertHeicToJpeg(file);
-                        if (!file) return;
+                        if (!file) continue;
                     }
 
-                    state.currentImageMimeType = file.type;
-                    const reader = new FileReader();
-                    reader.onload = e => {
-                        state.currentImage = e.target.result;
-                        state.currentImageBase64 = e.target.result.split(',')[1];
-                        state.originalImage = e.target.result;
-                        displayUploadedImage(state.currentImage);
-                        showStatus('Image loaded!', 'success');
-                    };
-                    reader.readAsDataURL(file);
+                    if (!state.currentImage) {
+                        // Set as primary image
+                        state.currentImageMimeType = file.type;
+                        const result = await processImageFile(file);
+                        if (result) {
+                            state.currentImage = result.dataUrl;
+                            state.currentImageBase64 = result.base64;
+                            state.originalImage = result.dataUrl;
+                        }
+                    } else if (state.additionalMainImages.length < MAX_MAIN_IMAGES - 1) {
+                        // Add as additional image
+                        const result = await processImageFile(file);
+                        if (result) {
+                            state.additionalMainImages.push({
+                                dataUrl: result.dataUrl,
+                                base64: result.base64,
+                                mimeType: result.mimeType || file.type
+                            });
+                        }
+                    } else {
+                        showStatus(`Maximum ${MAX_MAIN_IMAGES} images allowed`, 'error');
+                        break;
+                    }
                 }
+                renderMainUploadArea();
+                if (fileArray.length > 0) showStatus(`${Math.min(fileArray.length, MAX_MAIN_IMAGES)} image(s) loaded!`, 'success');
+            }
+        }
+
+        function renderMainUploadArea() {
+            const totalImages = (state.currentImage ? 1 : 0) + state.additionalMainImages.length;
+
+            if (totalImages === 0) {
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">🖼️</div>
+                    <div class="upload-text"><strong>Drop, paste, or click</strong><br>to upload images (up to ${MAX_MAIN_IMAGES})</div>
+                    <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                    <div class="upload-options-popup" id="mainUploadOptions">
+                        <button class="upload-option-btn" onclick="triggerFileUpload('main')">
+                            <span>💻</span> Upload from Computer
+                        </button>
+                        <button class="upload-option-btn" onclick="openGalleryPicker('main')">
+                            <span>🖼️</span> Select from Gallery
+                        </button>
+                    </div>
+                `;
+            } else if (totalImages === 1 && state.additionalMainImages.length === 0) {
+                // Single image - show large preview (original behavior)
+                uploadArea.innerHTML = `
+                    <img src="${state.currentImage}" alt="Uploaded" class="preview-image" data-preview="main" style="cursor: zoom-in;" title="Click to preview">
+                    <button class="clear-btn" onclick="clearImage(event)">Clear</button>
+                    <div class="main-count-label">1/${MAX_MAIN_IMAGES} images &mdash; drop or click + to add more</div>
+                    <button class="main-add-more-btn" onclick="event.stopPropagation(); $('mainUploadOptions')?.classList.toggle('show')" title="Add more images" style="margin-top: 8px;">+</button>
+                    <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                    <div class="upload-options-popup" id="mainUploadOptions">
+                        <button class="upload-option-btn" onclick="triggerFileUpload('main')">
+                            <span>💻</span> Upload from Computer
+                        </button>
+                        <button class="upload-option-btn" onclick="openGalleryPicker('main')">
+                            <span>🖼️</span> Select from Gallery
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Multiple images - show grid
+                let thumbsHtml = `
+                    <div class="main-image-thumb">
+                        <img src="${state.currentImage}" alt="Primary" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
+                        <button class="main-remove-btn" onclick="removeMainImage(0)" title="Remove">&times;</button>
+                    </div>
+                `;
+                state.additionalMainImages.forEach((img, i) => {
+                    thumbsHtml += `
+                        <div class="main-image-thumb">
+                            <img src="${img.dataUrl}" alt="Image ${i + 2}" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
+                            <button class="main-remove-btn" onclick="removeMainImage(${i + 1})" title="Remove">&times;</button>
+                        </div>
+                    `;
+                });
+
+                if (totalImages < MAX_MAIN_IMAGES) {
+                    thumbsHtml += `<button class="main-add-more-btn" onclick="event.stopPropagation(); $('mainUploadOptions')?.classList.toggle('show')" title="Add more images">+</button>`;
+                }
+
+                uploadArea.innerHTML = `
+                    <div class="main-images-grid">${thumbsHtml}</div>
+                    <div class="main-count-label">${totalImages}/${MAX_MAIN_IMAGES} images</div>
+                    <button class="clear-btn" onclick="clearImage(event)">Clear All</button>
+                    <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                    <div class="upload-options-popup" id="mainUploadOptions">
+                        <button class="upload-option-btn" onclick="triggerFileUpload('main')">
+                            <span>💻</span> Upload from Computer
+                        </button>
+                        <button class="upload-option-btn" onclick="openGalleryPicker('main')">
+                            <span>🖼️</span> Select from Gallery
+                        </button>
+                    </div>
+                `;
+            }
+            // Re-attach file input listener
+            const newFileInput = $('fileInput');
+            if (newFileInput) {
+                newFileInput.addEventListener('change', e => {
+                    handleFiles(e.target.files);
+                    $('mainUploadOptions')?.classList.remove('show');
+                });
             }
         }
 
         function displayUploadedImage(src) {
-            uploadArea.innerHTML = `
-                <img src="${src}" alt="Uploaded" class="preview-image" data-preview="main" style="cursor: zoom-in;" title="Click to preview">
-                <button class="clear-btn" onclick="clearImage(event)">Clear</button>
-                <div class="upload-options-popup" id="mainUploadOptions">
-                    <button class="upload-option-btn" onclick="triggerFileUpload('main')">
-                        <span>💻</span> Upload from Computer
-                    </button>
-                    <button class="upload-option-btn" onclick="openGalleryPicker('main')">
-                        <span>🖼️</span> Select from Gallery
-                    </button>
-                </div>
-            `;
+            // Set as primary if not already set
+            if (!state.currentImage) {
+                state.currentImage = src;
+                if (src.startsWith('data:')) {
+                    state.currentImageBase64 = src.split(',')[1];
+                    const mimeMatch = src.match(/^data:([^;]+);/);
+                    state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                }
+                state.originalImage = src;
+            }
+            renderMainUploadArea();
+        }
+
+        function removeMainImage(index) {
+            if (index === 0) {
+                // Removing primary image - promote first additional if available
+                if (state.additionalMainImages.length > 0) {
+                    const promoted = state.additionalMainImages.shift();
+                    state.currentImage = promoted.dataUrl;
+                    state.currentImageBase64 = promoted.base64;
+                    state.currentImageMimeType = promoted.mimeType;
+                    state.originalImage = promoted.dataUrl;
+                } else {
+                    state.currentImage = null;
+                    state.currentImageBase64 = null;
+                    state.originalImage = null;
+                }
+            } else {
+                state.additionalMainImages.splice(index - 1, 1);
+            }
+            renderMainUploadArea();
         }
 
         function clearImage(e) {
@@ -7498,25 +7922,8 @@
             state.currentImage = null;
             state.currentImageBase64 = null;
             state.originalImage = null;
-            uploadArea.innerHTML = `
-                <div class="upload-icon">🖼️</div>
-                <div class="upload-text"><strong>Drop, paste, or click</strong><br>to upload an image</div>
-                <input type="file" id="fileInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
-                <div class="upload-options-popup" id="mainUploadOptions">
-                    <button class="upload-option-btn" onclick="triggerFileUpload('main')">
-                        <span>💻</span> Upload from Computer
-                    </button>
-                    <button class="upload-option-btn" onclick="openGalleryPicker('main')">
-                        <span>🖼️</span> Select from Gallery
-                    </button>
-                </div>
-            `;
-            // Re-attach event listener to new file input
-            const newFileInput = $('fileInput');
-            newFileInput.addEventListener('change', e => {
-                handleFiles(e.target.files);
-                $('mainUploadOptions')?.classList.remove('show');
-            });
+            state.additionalMainImages = [];
+            renderMainUploadArea();
         }
 
         function resetResultArea() {
@@ -7542,91 +7949,22 @@
             renderBatchGrid();
         }
 
-        // Reference Image
+        // Reference Images
         refUploadArea.addEventListener('click', (e) => {
-            // Don't show options if clicking on clear button or option buttons
-            if (e.target.closest('.clear-btn') || e.target.closest('.upload-option-btn')) return;
-            if (state.referenceImage) return; // If image exists, don't show options
+            if (e.target.closest('.clear-btn') || e.target.closest('.upload-option-btn') || e.target.closest('.ref-remove-btn') || e.target.closest('.ref-add-more-btn')) return;
+            if (state.referenceImages.length >= MAX_REF_IMAGES) return;
+            if (state.referenceImages.length > 0) return; // Use + button to add more
 
             const popup = $('refUploadOptions');
             popup?.classList.toggle('show');
-            // Hide main popup if open
             $('mainUploadOptions')?.classList.remove('show');
         });
-        refFileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const result = await processImageFile(file);
-                if (result) {
-                    state.referenceImage = result.dataUrl;
-                    state.referenceImageBase64 = result.base64;
-                    refUploadArea.innerHTML = `
-                        <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
-                        <button class="clear-btn" onclick="clearRef(event)">Clear</button>
-                        <div class="upload-options-popup" id="refUploadOptions">
-                            <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
-                                <span>💻</span> Upload from Computer
-                            </button>
-                            <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
-                                <span>🖼️</span> Select from Gallery
-                            </button>
-                            <button class="upload-option-btn" onclick="pasteToRef()">
-                                <span>📋</span> Paste from Clipboard
-                            </button>
-                        </div>
-                    `;
-                    showStatus('Reference image loaded!', 'success');
-                }
-            }
-        });
+        refFileInput.addEventListener('change', handleRefFileChange);
 
         function clearRef(e) {
             e.stopPropagation();
-            state.referenceImage = null;
-            state.referenceImageBase64 = null;
-            refUploadArea.innerHTML = `
-                <div class="ref-label">+ Add Style Reference (optional)</div>
-                <input type="file" id="refFileInput" class="hidden-input" accept="image/*,.heic,.heif">
-                <div class="upload-options-popup" id="refUploadOptions">
-                    <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
-                        <span>💻</span> Upload from Computer
-                    </button>
-                    <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
-                        <span>🖼️</span> Select from Gallery
-                    </button>
-                    <button class="upload-option-btn" onclick="pasteToRef()">
-                        <span>📋</span> Paste from Clipboard
-                    </button>
-                </div>
-            `;
-            // Re-attach event listener to new file input
-            const newRefInput = $('refFileInput');
-            newRefInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const result = await processImageFile(file);
-                    if (result) {
-                        state.referenceImage = result.dataUrl;
-                        state.referenceImageBase64 = result.base64;
-                        refUploadArea.innerHTML = `
-                            <img src="${state.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">
-                            <button class="clear-btn" onclick="clearRef(event)">Clear</button>
-                            <div class="upload-options-popup" id="refUploadOptions">
-                                <button class="upload-option-btn" onclick="triggerFileUpload('ref')">
-                                    <span>💻</span> Upload from Computer
-                                </button>
-                                <button class="upload-option-btn" onclick="openGalleryPicker('ref')">
-                                    <span>🖼️</span> Select from Gallery
-                                </button>
-                                <button class="upload-option-btn" onclick="pasteToRef()">
-                                    <span>📋</span> Paste from Clipboard
-                                </button>
-                            </div>
-                        `;
-                        showStatus('Reference image loaded!', 'success');
-                    }
-                }
-            });
+            state.referenceImages = [];
+            renderRefUploadArea();
         }
 
         // ========== STYLE PRESETS ==========
@@ -8099,6 +8437,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 state.currentImage = img.src;
                 state.currentImageBase64 = img.src.split(',')[1];
                 state.currentImageMimeType = img.mimeType || 'image/png';
+                state.additionalMainImages = [];
                 displayUploadedImage(img.src);
                 showStatus('Image loaded for further editing!', 'success');
             }
@@ -8437,13 +8776,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         { text: fullPrompt }
                     ];
 
-                    if (state.referenceImageBase64) {
-                        parts.splice(1, 0, {
-                            inlineData: {
-                                mimeType: state.currentImageMimeType || 'image/jpeg',
-                                data: state.referenceImageBase64
-                            }
-                        });
+                    if (state.referenceImages.length > 0) {
+                        const refParts = state.referenceImages.map(ref => ({
+                            inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 }
+                        }));
+                        parts.splice(1, 0, ...refParts);
                     }
 
                     const response = await fetch(`${endpoint}?key=${apiKey}`, {
@@ -8667,14 +9004,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (isTextToImage) {
                 for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
                     const parts = [];
-                    if (state.referenceImageBase64) {
-                        parts.push({
-                            inlineData: {
-                                mimeType: state.currentImageMimeType || 'image/jpeg',
-                                data: state.referenceImageBase64
-                            }
-                        });
-                    }
+                    state.referenceImages.forEach(ref => {
+                        parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                    });
                     parts.push({ text: fullPrompt });
 
                     requests.push({
@@ -8685,28 +9017,23 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     });
                 }
             } else {
-                for (const imgData of imagesToProcess) {
-                    for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
-                        const parts = [
-                            { inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } },
-                            { text: fullPrompt }
-                        ];
-                        if (state.referenceImageBase64) {
-                            parts.splice(1, 0, {
-                                inlineData: {
-                                    mimeType: state.currentImageMimeType || 'image/jpeg',
-                                    data: state.referenceImageBase64
-                                }
-                            });
-                        }
+                for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                    // Send ALL main images together in a single request
+                    const parts = [];
+                    imagesToProcess.forEach(imgData => {
+                        parts.push({ inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } });
+                    });
+                    state.referenceImages.forEach(ref => {
+                        parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                    });
+                    parts.push({ text: fullPrompt });
 
-                        requests.push({
-                            request: {
-                                contents: [{ parts }],
-                                generationConfig: getGenerationConfig(true)
-                            }
-                        });
-                    }
+                    requests.push({
+                        request: {
+                            contents: [{ parts }],
+                            generationConfig: getGenerationConfig(true)
+                        }
+                    });
                 }
             }
 
@@ -10046,6 +10373,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (item) {
                 state.currentImage = item.src;
                 state.originalImage = item.src;
+                state.additionalMainImages = [];
                 promptInput.value = item.prompt || '';
                 displayUploadedImage(item.src);
                 document.querySelector('[data-tab="editor"]').click();
@@ -10434,7 +10762,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (!prompt) { showStatus('Enter a prompt', 'error'); return; }
 
             const imagesToProcess = state.currentImageBase64
-                ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }]
+                ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }, ...state.additionalMainImages.map(img => ({ base64: img.base64, mimeType: img.mimeType }))]
                 : [];
 
             console.log('Generate: Mode:', state.mode);
@@ -10491,7 +10819,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
 
             fullPrompt += prompt;
-            if (state.referenceImageBase64 && !hasMentions) fullPrompt += '. Match the style of the reference image provided.';
+            if (state.referenceImages.length > 0 && !hasMentions) fullPrompt += `. Match the style of the ${state.referenceImages.length > 1 ? 'reference images' : 'reference image'} provided.`;
             fullPrompt += `. Output in ${aspectMap[state.selectedAspectRatio]} at ${resMap[state.selectedResolution]}.`;
 
             const allImages = [];
@@ -10506,9 +10834,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         }
 
                         const parts = [];
-                        if (state.referenceImageBase64) {
-                            parts.push({ inlineData: { mimeType: 'image/jpeg', data: state.referenceImageBase64 } });
-                        }
+                        state.referenceImages.forEach(ref => {
+                            parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                        });
                         parts.push({ text: fullPrompt });
 
                         const requestBody = {
@@ -10542,47 +10870,45 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     }
                 } else {
                     // IMAGE-TO-IMAGE MODE: Edit existing images
-                    for (let imgIndex = 0; imgIndex < imagesToProcess.length; imgIndex++) {
-                        const imgData = imagesToProcess[imgIndex];
+                    for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                        if (state.selectedGenerationCount > 1) {
+                            showStatus(`Generation ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
+                        }
 
-                        for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
-                            if (imagesToProcess.length > 1 || state.selectedGenerationCount > 1) {
-                                showStatus(`Processing ${imgIndex + 1}/${imagesToProcess.length}, generation ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
-                            }
+                        // Send ALL main images together in a single request
+                        const parts = [];
+                        imagesToProcess.forEach(imgData => {
+                            parts.push({ inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } });
+                        });
+                        state.referenceImages.forEach(ref => {
+                            parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                        });
+                        parts.push({ text: fullPrompt });
 
-                            const parts = [
-                                { inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } }
-                            ];
-                            if (state.referenceImageBase64) {
-                                parts.push({ inlineData: { mimeType: 'image/jpeg', data: state.referenceImageBase64 } });
-                            }
-                            parts.push({ text: fullPrompt });
+                        const editBody = {
+                            contents: [{ parts }],
+                            generationConfig: getGenerationConfig()
+                        };
+                        const editTools = getTools();
+                        if (editTools) editBody.tools = editTools;
 
-                            const editBody = {
-                                contents: [{ parts }],
-                                generationConfig: getGenerationConfig()
-                            };
-                            const editTools = getTools();
-                            if (editTools) editBody.tools = editTools;
+                        const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(editBody)
+                        });
 
-                            const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(editBody)
-                            });
+                        if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-                            if (!response.ok) throw new Error(`API Error: ${response.status}`);
-
-                            const data = await response.json();
-                            const cost = estimateCost(data.usageMetadata);
-                            if (cost) totalCost += cost.total;
-                            if (data.candidates) {
-                                for (const candidate of data.candidates) {
-                                    for (const part of candidate.content?.parts || []) {
-                                        if (part.inlineData) {
-                                            const mimeType = part.inlineData.mimeType || 'image/png';
-                                            allImages.push({ src: `data:${mimeType};base64,${part.inlineData.data}`, mimeType });
-                                        }
+                        const data = await response.json();
+                        const cost = estimateCost(data.usageMetadata);
+                        if (cost) totalCost += cost.total;
+                        if (data.candidates) {
+                            for (const candidate of data.candidates) {
+                                for (const part of candidate.content?.parts || []) {
+                                    if (part.inlineData) {
+                                        const mimeType = part.inlineData.mimeType || 'image/png';
+                                        allImages.push({ src: `data:${mimeType};base64,${part.inlineData.data}`, mimeType });
                                     }
                                 }
                             }
@@ -10739,6 +11065,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             state.currentImage = src;
             state.originalImage = src;
+            state.additionalMainImages = [];
 
             // If from gallery, also load the prompt
             if (lightboxSource === 'gallery' && state.currentGalleryItems[lightboxIndex]) {
@@ -11564,6 +11891,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 displayUploadedImage(product.referenceImage);
                 state.currentImage = product.referenceImage;
                 state.originalImage = product.referenceImage;
+                state.additionalMainImages = [];
 
                 // If it's already a base64 data URL, extract the data directly
                 if (product.referenceImage.startsWith('data:')) {
