@@ -5512,6 +5512,10 @@
                     <div class="mode-hint" id="modeHint" style="display: none; font-size: 0.75rem; color: var(--color-green); margin-top: 4px;">
                         Batch API: 50% cheaper, async processing (up to 24h)
                     </div>
+                    <div id="batchLabelGroup" style="display: none; margin-top: 8px;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Batch Label</label>
+                        <input type="text" id="batchLabelInput" placeholder="e.g. Product shots - blue background" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.85rem; box-sizing: border-box;">
+                    </div>
                 </div>
             </div>
 
@@ -6885,8 +6889,11 @@
                         // Don't save to localStorage - cloud is source of truth when signed in
                     }
                     if (settings.reviewItems) {
-                        state.reviewItems = settings.reviewItems;
-                        // Don't save to localStorage - cloud is source of truth when signed in
+                        // Merge cloud review items with local ones to prevent data loss
+                        // (local items may not have synced to cloud yet due to debounced sync)
+                        const cloudReviewIds = new Set(settings.reviewItems.map(r => r.id));
+                        const localOnly = state.reviewItems.filter(r => !cloudReviewIds.has(r.id));
+                        state.reviewItems = [...localOnly, ...settings.reviewItems];
                         updateReviewUI();
                     }
                     if (settings.collections) {
@@ -6997,8 +7004,9 @@
                 const preLoginLocalGallery = Storage.get('gallery', []);
                 const preLoginLocalProducts = Storage.get('products', []);
                 const preLoginLocalPrompts = Storage.get('prompts', []);
-                // Capture local batch jobs — they may not have synced to cloud yet
+                // Capture local batch jobs and review items — they may not have synced to cloud yet
                 const preLoginLocalBatchJobs = Storage.get('batchJobs', []);
+                const preLoginLocalReviewItems = Storage.get('reviewItems', []);
 
                 showSyncIndicator('Syncing data...');
 
@@ -7012,6 +7020,17 @@
                     if (missing.length > 0) {
                         state.batchJobs = [...missing, ...state.batchJobs];
                         saveBatchJobs();
+                    }
+                }
+
+                // Re-merge local review items that may not have synced to cloud yet
+                if (preLoginLocalReviewItems.length > 0) {
+                    const currentReviewIds = new Set(state.reviewItems.map(r => r.id));
+                    const missingReviews = preLoginLocalReviewItems.filter(r => !currentReviewIds.has(r.id));
+                    if (missingReviews.length > 0) {
+                        state.reviewItems = [...missingReviews, ...state.reviewItems];
+                        saveReviewItems();
+                        updateReviewUI();
                     }
                 }
 
@@ -7167,6 +7186,7 @@
             const isBatch = state.mode === 'batch';
             batchGrid.style.display = 'none';
             $('modeHint').style.display = isBatch ? 'block' : 'none';
+            $('batchLabelGroup').style.display = isBatch ? 'block' : 'none';
             submitBtn.querySelector('span').textContent = isBatch ? 'Submit Batch' : 'Generate Edit';
 
             // Batch mode uses the Batch API, not the queue panel
@@ -9044,7 +9064,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 return;
             }
 
-            const displayName = `KnappShot batch - ${new Date().toLocaleString()}`;
+            const userLabel = $('batchLabelInput')?.value?.trim();
+            const displayName = userLabel || `KnappShot batch - ${new Date().toLocaleString()}`;
             const modelId = modelName.replace('models/', '');
 
             try {
@@ -9104,6 +9125,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 showStatus(`Batch submitted! ${requests.length} image${requests.length !== 1 ? 's' : ''} queued for async processing (50% cheaper).`, 'success');
                 addNotification('batch_submitted', 'Batch Submitted', `${requests.length} image${requests.length !== 1 ? 's' : ''} submitted for batch processing. Results within 24 hours.`, 'View Status');
                 pulseReviewBadge();
+                // Clear batch label input after successful submission
+                if ($('batchLabelInput')) $('batchLabelInput').value = '';
 
             } catch (error) {
                 console.error('Batch submission error:', error);
