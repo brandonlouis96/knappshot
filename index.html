@@ -9244,6 +9244,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             let successCount = 0;
             let failCount = 0;
             const apiKey = apiKeyInput.value.trim();
+            // Pass custom batch label to review items (null if auto-generated)
+            const batchLabel = job.displayName && !job.displayName.startsWith('KnappShot batch - ')
+                ? job.displayName : null;
 
             try {
                 // Google nests results at metadata.output.inlinedResponses.inlinedResponses
@@ -9267,7 +9270,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             );
                             if (imagePart) {
                                 const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                                addToReview(imageSrc, job.prompt, null);
+                                addToReview(imageSrc, job.prompt, null, batchLabel);
                                 successCount++;
                             } else {
                                 failCount++;
@@ -9300,7 +9303,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                     );
                                     if (imagePart) {
                                         const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                                        addToReview(imageSrc, job.prompt, null);
+                                        addToReview(imageSrc, job.prompt, null, batchLabel);
                                         successCount++;
                                     } else {
                                         failCount++;
@@ -9394,13 +9397,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         const approveAllBtn = $('approveAllBtn');
         const clearReviewBtn = $('clearReviewBtn');
 
-        function addToReview(imageSrc, prompt, originalImage = null) {
+        function addToReview(imageSrc, prompt, originalImage = null, batchLabel = null) {
             const item = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 src: imageSrc,
                 prompt: prompt || '',
                 generatedAt: Date.now(),
                 originalImage: originalImage,
+                batchLabel: batchLabel || null,
                 selected: false
             };
             state.reviewItems.unshift(item);
@@ -9615,7 +9619,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 src: item.src,
                 prompt: item.prompt,
                 date: new Date().toISOString(),
-                favorite: false
+                favorite: false,
+                batchLabel: item.batchLabel || null
             };
 
             if (currentUser) {
@@ -10387,7 +10392,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function openGalleryLightbox(index) {
-            const images = state.currentGalleryItems.map(item => ({ src: item.src }));
+            const images = state.currentGalleryItems.map(item => ({
+                src: item.src,
+                batchLabel: item.batchLabel || null,
+                galleryId: item.id
+            }));
             openLightbox(images, index, 'gallery');
         }
 
@@ -10564,7 +10573,10 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                     // Convert image to desired format
                     const blob = await convertImageToBlob(item.src, format, quality);
-                    const filename = `knappshot-${item.id}.${format === 'jpeg' ? 'jpg' : format}`;
+                    const ext = format === 'jpeg' ? 'jpg' : format;
+                    const filename = item.batchLabel
+                        ? buildBatchFilename(item.batchLabel, ext, item.id)
+                        : `knappshot-${item.id}.${ext}`;
                     zip.file(filename, blob);
                 }
 
@@ -11035,7 +11047,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         async function downloadLightboxImage() {
             const img = lightboxImages[lightboxIndex];
             const src = img.src || img;
-            const filename = `knappshot-${Date.now()}.png`;
+            const filename = img.batchLabel
+                ? buildBatchFilename(img.batchLabel, 'png', img.galleryId)
+                : `knappshot-${Date.now()}.png`;
 
             showStatus('Preparing download...', 'info');
 
@@ -11061,6 +11075,23 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 console.error('Download error:', error);
                 showStatus('Right-click the image and select "Save Image As..."', 'error');
             }
+        }
+
+        // Build a download filename from a batch label, deduplicating against siblings
+        function buildBatchFilename(batchLabel, ext, galleryItemId) {
+            if (!batchLabel) return `knappshot-${Date.now()}.${ext}`;
+            // Sanitize label for use as filename
+            const safe = batchLabel.replace(/[<>:"/\\|?*]+/g, '').replace(/\s+/g, ' ').trim();
+            // Find all gallery items with the same batch label, sorted by date
+            const siblings = state.gallery
+                .filter(g => g.batchLabel === batchLabel)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (siblings.length <= 1) return `${safe}.${ext}`;
+            // Find this item's position among its siblings (1-based)
+            const pos = galleryItemId
+                ? siblings.findIndex(g => g.id === galleryItemId) + 1
+                : siblings.length;
+            return `${safe} ${pos}.${ext}`;
         }
 
         // Helper function to trigger download from blob
