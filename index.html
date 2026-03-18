@@ -9495,8 +9495,18 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
             }
 
-            // Load the job's prompt into the editor
+            // Mark old job as resubmitted
+            job.displayName = (job.displayName || '') + ' (resubmitted)';
+            saveBatchJobs();
+
+            // Populate the prompt
             promptInput.value = job.prompt || '';
+
+            // Populate the batch label (strip auto-generated prefix and "(resubmitted)" suffix)
+            let label = job.displayName || '';
+            label = label.replace(/\s*\(resubmitted\)/g, '');
+            if (label.startsWith('KnappShot batch - ')) label = ''; // was auto-generated, don't restore
+            if ($('batchLabelInput')) $('batchLabelInput').value = label;
 
             // Set the model if it matches an option
             if (job.model) {
@@ -9509,23 +9519,34 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 }
             }
 
-            // Build images from current editor state
-            const imagesToProcess = state.currentImageBase64
-                ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }, ...state.additionalMainImages.map(img => ({ base64: img.base64, mimeType: img.mimeType }))]
-                : [];
-
-            // Set generation count to match original job
+            // Set generation count and update button UI
             state.selectedGenerationCount = job.requestCount || 1;
+            const genButtons = $('generationCountButtons');
+            if (genButtons) {
+                genButtons.querySelectorAll('.option-btn').forEach(btn => {
+                    btn.classList.toggle('active', parseInt(btn.dataset.value) === state.selectedGenerationCount);
+                });
+            }
 
-            // Mark old job as resubmitted
-            job.displayName = (job.displayName || '') + ' (resubmitted)';
-            saveBatchJobs();
+            // Switch to batch mode
+            state.mode = 'batch';
+            const modeButtons = $('modeButtons');
+            if (modeButtons) {
+                modeButtons.querySelectorAll('.option-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.value === 'batch');
+                });
+            }
+            toggleBatchMode();
+
+            // Switch to editor tab
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            const editorTab = document.querySelector('.tab[data-tab="editor"]');
+            if (editorTab) editorTab.classList.add('active');
+            $('tab-editor')?.classList.add('active');
+
             updateReviewUI();
-
-            showStatus('Resubmitting batch job...', 'loading');
-
-            // Submit as new batch
-            await submitBatchJob(imagesToProcess, job.prompt || '');
+            showStatus('Job settings loaded — load your product profile images, then hit Submit Batch', 'success');
         }
 
         function dismissBatchJob(jobId) {
