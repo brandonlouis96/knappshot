@@ -2670,6 +2670,65 @@
             border-radius: 8px;
         }
 
+        .product-images-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .product-images-grid .product-img-thumb {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+        .product-images-grid .product-img-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .product-images-grid .product-img-thumb .product-img-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .product-images-grid .product-img-add {
+            width: 80px;
+            height: 80px;
+            border: 2px dashed var(--border-accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: var(--text-tertiary);
+            transition: all 0.2s;
+        }
+        .product-images-grid .product-img-add:hover {
+            border-color: var(--color-purple);
+            color: var(--color-purple);
+        }
+        .product-images-count {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
+
         .form-actions {
             display: flex;
             gap: 12px;
@@ -5918,11 +5977,13 @@
                     <input type="text" id="productForbiddenWords" placeholder="mascara, bristles, brush">
                 </div>
                 <div class="form-field">
-                    <label>Reference Image <span class="field-hint">(Optional)</span></label>
-                    <input type="file" id="productImageInput" class="hidden-input" accept="image/*,.heic,.heif">
-                    <label for="productImageInput" class="product-image-upload" id="productImageUpload">
-                        <span>Click to upload reference image</span>
-                    </label>
+                    <label>Reference Images <span class="field-hint">(Optional, up to 5)</span></label>
+                    <input type="file" id="productImageInput" class="hidden-input" accept="image/*,.heic,.heif" multiple>
+                    <div id="productImagesArea">
+                        <label for="productImageInput" class="product-image-upload" id="productImageUpload">
+                            <span>Click to upload reference images</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button class="action-btn save" id="saveProductBtn">Save Product</button>
@@ -6154,7 +6215,12 @@
             collections: Storage.get('collections', []),
             activeCollection: null,
             // Products system
-            products: Storage.get('products', []),
+            products: Storage.get('products', []).map(p => {
+                if (!p.referenceImages || !Array.isArray(p.referenceImages)) {
+                    p.referenceImages = p.referenceImage ? [p.referenceImage] : [];
+                }
+                return p;
+            }),
             activeProductId: Storage.get('activeProductId', null)
         };
 
@@ -6760,10 +6826,10 @@
             }
         }
 
-        async function uploadProductImage(productId, base64Image) {
+        async function uploadProductImage(productId, base64Image, imageIndex = 0) {
             // Upload reference image to Firebase Storage and return download URL
             try {
-                const imageRef = storage.ref(`users/${currentUser.uid}/products/${productId}`);
+                const imageRef = storage.ref(`users/${currentUser.uid}/products/${productId}_${imageIndex}`);
 
                 // Convert base64 to blob
                 const response = await fetch(base64Image);
@@ -6794,16 +6860,38 @@
                     const productId = product.id.toString();
                     const productToSave = { ...product };
 
-                    // If referenceImage is a base64 data URL (large), upload to Storage first
-                    if (productToSave.referenceImage && productToSave.referenceImage.startsWith('data:')) {
+                    // Upload referenceImages array - any base64 data URLs get uploaded to Storage
+                    if (productToSave.referenceImages && productToSave.referenceImages.length > 0) {
+                        const uploadedImages = [];
+                        for (let i = 0; i < productToSave.referenceImages.length; i++) {
+                            const img = productToSave.referenceImages[i];
+                            if (img && img.startsWith('data:')) {
+                                console.log(`Uploading product reference image ${i + 1} to Storage...`);
+                                const imageUrl = await uploadProductImage(productId, img, i);
+                                if (imageUrl) {
+                                    uploadedImages.push(imageUrl);
+                                    // Update local state too
+                                    product.referenceImages[i] = imageUrl;
+                                }
+                                // Skip failed uploads silently
+                            } else if (img) {
+                                uploadedImages.push(img);
+                            }
+                        }
+                        productToSave.referenceImages = uploadedImages;
+                        productToSave.referenceImage = uploadedImages[0] || null;
+                        product.referenceImage = uploadedImages[0] || null;
+                    }
+                    // Legacy: also handle old single referenceImage if no referenceImages
+                    else if (productToSave.referenceImage && productToSave.referenceImage.startsWith('data:')) {
                         console.log('Uploading product reference image to Storage...');
                         const imageUrl = await uploadProductImage(productId, productToSave.referenceImage);
                         if (imageUrl) {
                             productToSave.referenceImage = imageUrl;
-                            // Update local state with the URL too
                             product.referenceImage = imageUrl;
+                            productToSave.referenceImages = [imageUrl];
+                            product.referenceImages = [imageUrl];
                         } else {
-                            // If upload failed, remove image to prevent Firestore error
                             delete productToSave.referenceImage;
                         }
                     }
@@ -6829,7 +6917,12 @@
                 const snapshot = await productsRef.get();
                 const products = [];
                 snapshot.forEach(doc => {
-                    products.push(doc.data());
+                    const p = doc.data();
+                    // Normalize: ensure referenceImages array exists (backward compat)
+                    if (!p.referenceImages || !Array.isArray(p.referenceImages)) {
+                        p.referenceImages = p.referenceImage ? [p.referenceImage] : [];
+                    }
+                    products.push(p);
                 });
                 return products.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             } catch (error) {
@@ -7393,13 +7486,16 @@
             const productModal = $('productModal');
             const isProductModalOpen = productModal?.classList.contains('active');
 
-            // If product modal is open, paste to product image
+            // If product modal is open, paste to product images
             if (isProductModalOpen) {
+                if (productModalImages.length >= MAX_PRODUCT_IMAGES) {
+                    showStatus(`Maximum ${MAX_PRODUCT_IMAGES} product images allowed`, 'error');
+                    return;
+                }
                 const result = await processImageFile(imageFile);
                 if (result) {
-                    const uploadArea = $('productImageUpload');
-                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">`;
-                    uploadArea.dataset.imageData = result.dataUrl;
+                    productModalImages.push(result.dataUrl);
+                    renderProductModalImages();
                     showStatus('Image pasted to product!', 'success');
                 }
                 return;
@@ -8053,7 +8149,6 @@
                 let productInstructions = '';
                 if (product) {
                     productInstructions = `\n\nPRODUCT PROFILE REQUIREMENTS:
-- Product Name: ${product.name}
 - Description: ${product.description || 'Not specified'}`;
                     if ((product.goldenPhrases || []).length) {
                         productInstructions += `\n- MANDATORY: You MUST naturally incorporate these key phrases: "${product.goldenPhrases.join('", "')}"`;
@@ -8061,7 +8156,7 @@
                     if ((product.forbiddenWords || []).length) {
                         productInstructions += `\n- FORBIDDEN: NEVER use these terms: ${product.forbiddenWords.join(', ')}`;
                     }
-                    productInstructions += `\n\nThe enhanced prompt must follow these product requirements exactly.`;
+                    productInstructions += `\n\nIMPORTANT: Do NOT mention the product by name. The enhanced prompt must follow these product requirements exactly.`;
                 }
 
                 console.log('Enhance: currentImageBase64 exists?', !!state.currentImageBase64, 'length:', state.currentImageBase64?.length);
@@ -8151,7 +8246,8 @@
             const modelConfig = promptGenModels[selectedModel] || promptGenModels['pro'];
 
             // Check if product has a reference image
-            const hasProductImage = product && product.referenceImage;
+            const productImages = product ? getProductImages(product) : [];
+            const hasProductImage = productImages.length > 0;
             const hasUploadedImage = state.currentImageBase64;
 
             // Build the user message with context
@@ -8159,7 +8255,6 @@
 
             if (product) {
                 userMessage += `\n\nPRODUCT PROFILE REQUIREMENTS:
-- Product Name: ${product.name}
 - Description: ${product.description || 'Not specified'}`;
                 if ((product.goldenPhrases || []).length) {
                     userMessage += `\n- MANDATORY PHRASES (you MUST weave these naturally into the prompt): "${product.goldenPhrases.join('", "')}"`;
@@ -8167,7 +8262,7 @@
                 if ((product.forbiddenWords || []).length) {
                     userMessage += `\n- FORBIDDEN TERMS (NEVER use these words): ${product.forbiddenWords.join(', ')}`;
                 }
-                userMessage += `\n\nCRITICAL: The generated Mega Prompt must strictly follow these product requirements.`;
+                userMessage += `\n\nCRITICAL: Do NOT mention the product by name. The generated Mega Prompt must strictly follow these product requirements.`;
             }
 
             // Add aspect ratio constraint
@@ -8218,7 +8313,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             // (When product is selected, its image is loaded into state.currentImageBase64)
             if (hasProductImage && !imageAdded) {
                 console.log('Mega Prompt: Fetching product reference image...');
-                const productImageData = await getImageDataFromSource(product.referenceImage);
+                const productImageData = await getImageDataFromSource(productImages[0]);
                 if (productImageData && productImageData.base64Data?.length > 100) {
                     console.log('Mega Prompt: Adding product image, mime:', productImageData.mimeType, 'length:', productImageData.base64Data?.length);
                     parts.push({
@@ -11683,6 +11778,45 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         // Products state is already initialized in the state object above
 
         let editingProductId = null;
+        let productModalImages = []; // temp array for images being edited in the modal
+        const MAX_PRODUCT_IMAGES = 5;
+
+        // Helper: normalize product images (backward compat: old single referenceImage → array)
+        function getProductImages(product) {
+            if (!product) return [];
+            if (product.referenceImages && product.referenceImages.length > 0) return product.referenceImages;
+            if (product.referenceImage) return [product.referenceImage];
+            return [];
+        }
+
+        function renderProductModalImages() {
+            const area = $('productImagesArea');
+            if (!area) return;
+            if (productModalImages.length === 0) {
+                area.innerHTML = `<label for="productImageInput" class="product-image-upload" id="productImageUpload">
+                    <span>Click to upload reference images</span>
+                </label>`;
+            } else {
+                let thumbs = productModalImages.map((img, i) => `
+                    <div class="product-img-thumb">
+                        <img src="${img}" alt="Ref ${i+1}">
+                        <button class="product-img-remove" onclick="removeProductModalImage(${i})" title="Remove">&times;</button>
+                    </div>
+                `).join('');
+                if (productModalImages.length < MAX_PRODUCT_IMAGES) {
+                    thumbs += `<label for="productImageInput" class="product-img-add" title="Add more images">+</label>`;
+                }
+                area.innerHTML = `
+                    <div class="product-images-grid">${thumbs}</div>
+                    <div class="product-images-count">${productModalImages.length}/${MAX_PRODUCT_IMAGES} images</div>
+                `;
+            }
+        }
+
+        function removeProductModalImage(index) {
+            productModalImages.splice(index, 1);
+            renderProductModalImages();
+        }
 
         function escapeHtml(text) {
             const div = document.createElement('div');
@@ -11740,13 +11874,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             $('productGoldenPhrases').value = (product?.goldenPhrases || []).join('\n');
             $('productForbiddenWords').value = (product?.forbiddenWords || []).join(', ');
 
-            // Reset image upload
-            const uploadArea = $('productImageUpload');
-            if (product?.referenceImage) {
-                uploadArea.innerHTML = `<img src="${product.referenceImage}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">`;
-            } else {
-                uploadArea.innerHTML = '<span>Click to upload reference image</span>';
-            }
+            // Populate images from product (backward compat)
+            productModalImages = [...getProductImages(product)];
+            renderProductModalImages();
 
             $('productModal').classList.add('active');
         }
@@ -11756,10 +11886,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const description = $('productDescription').value.trim();
             const goldenPhrases = $('productGoldenPhrases').value.split('\n').map(s => s.trim()).filter(Boolean);
             const forbiddenWords = $('productForbiddenWords').value.split(',').map(s => s.trim()).filter(Boolean);
-
-            // Get reference image from upload area (if newly uploaded) or keep existing
-            const uploadArea = $('productImageUpload');
-            const newImageData = uploadArea.dataset.imageData;
 
             if (!name) {
                 alert('Please enter a product name');
@@ -11772,19 +11898,21 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             saveBtn.textContent = 'Saving...';
             saveBtn.disabled = true;
 
+            // Use productModalImages array as the source of truth
+            const images = [...productModalImages];
+
             if (editingProductId) {
                 // Update existing
                 const index = state.products.findIndex(p => p.id === editingProductId);
                 if (index !== -1) {
-                    const existingImage = state.products[index].referenceImage;
                     state.products[index] = {
                         ...state.products[index],
                         name,
                         description,
                         goldenPhrases,
                         forbiddenWords,
-                        // Use new image if uploaded, otherwise keep existing
-                        referenceImage: newImageData || existingImage || null
+                        referenceImages: images,
+                        referenceImage: images[0] || null // backward compat
                     };
                 }
             } else {
@@ -11795,7 +11923,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     description,
                     goldenPhrases,
                     forbiddenWords,
-                    referenceImage: newImageData || null,
+                    referenceImages: images,
+                    referenceImage: images[0] || null, // backward compat
                     createdAt: new Date().toISOString()
                 });
             }
@@ -11842,7 +11971,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 description: original.description || '',
                 goldenPhrases: [...(original.goldenPhrases || [])],
                 forbiddenWords: [...(original.forbiddenWords || [])],
-                referenceImage: original.referenceImage || null
+                referenceImages: [...getProductImages(original)],
+                referenceImage: getProductImages(original)[0] || null
             };
 
             state.products.push(duplicate);
@@ -11890,17 +12020,21 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         // Product image upload handler (label handles click natively via for="productImageInput")
         $('productImageInput')?.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
+            const files = Array.from(e.target.files);
+            let added = 0;
+            for (const file of files) {
+                if (productModalImages.length >= MAX_PRODUCT_IMAGES) break;
                 const result = await processImageFile(file);
                 if (result) {
-                    const uploadArea = $('productImageUpload');
-                    uploadArea.innerHTML = `<img src="${result.dataUrl}" alt="Reference" class="preview-image" style="cursor: zoom-in;" title="Click to preview">`;
-                    // Store temporarily for saving
-                    uploadArea.dataset.imageData = result.dataUrl;
-                    showStatus('Product image loaded!', 'success');
+                    productModalImages.push(result.dataUrl);
+                    added++;
                 }
             }
+            if (added > 0) {
+                renderProductModalImages();
+                showStatus(`${added} product image(s) loaded!`, 'success');
+            }
+            e.target.value = ''; // reset so same files can be re-selected
         });
 
         // Product event listeners
@@ -11912,8 +12046,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const select = $('editorProductSelect');
             if (!select) return;
 
-            // Only show products that have a reference image
-            const productsWithImages = state.products.filter(p => p.referenceImage);
+            // Only show products that have reference images
+            const productsWithImages = state.products.filter(p => getProductImages(p).length > 0);
 
             select.innerHTML = '<option value="">-- Select a product --</option>' +
                 productsWithImages.map(p =>
@@ -11937,39 +12071,60 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
 
             const product = state.products.find(p => p.id === productId);
-            if (product && product.referenceImage) {
+            const images = getProductImages(product);
+            if (product && images.length > 0) {
                 // Set the active product ID so Mega Prompt and Enhance can use it
                 state.activeProductId = productId;
 
-                // Display the image immediately (works with both URL and data URL)
-                displayUploadedImage(product.referenceImage);
-                state.currentImage = product.referenceImage;
-                state.originalImage = product.referenceImage;
+                // Load first image as the main editor image
+                const mainImage = images[0];
+                state.currentImage = mainImage;
+                state.originalImage = mainImage;
                 state.additionalMainImages = [];
 
-                // If it's already a base64 data URL, extract the data directly
-                if (product.referenceImage.startsWith('data:')) {
-                    const mimeMatch = product.referenceImage.match(/^data:([^;]+);/);
+                // Extract base64 for first image
+                if (mainImage.startsWith('data:')) {
+                    const mimeMatch = mainImage.match(/^data:([^;]+);/);
                     state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-                    state.currentImageBase64 = product.referenceImage.split(',')[1];
-                    showStatus(`Loaded "${product.name}" - product profile active`, 'success');
+                    state.currentImageBase64 = mainImage.split(',')[1];
                 } else {
-                    // It's a URL - try to get base64 data in background, but don't block
-                    showStatus(`Loaded "${product.name}" - product profile active`, 'success');
-
-                    // Try to pre-cache the image data for API calls
-                    getImageDataFromSource(product.referenceImage).then(imageData => {
+                    getImageDataFromSource(mainImage).then(imageData => {
                         if (imageData) {
                             state.currentImageBase64 = imageData.base64Data;
                             state.currentImageMimeType = imageData.mimeType;
-                            console.log('Product image data cached for API calls');
-                        } else {
-                            console.log('Could not pre-cache image data - will fetch when needed');
                         }
                     });
                 }
 
-                // Keep the product selected (don't reset) so user sees which product is active
+                // Load remaining images as additional main images in the editor
+                for (let i = 1; i < images.length; i++) {
+                    const imgSrc = images[i];
+                    if (imgSrc.startsWith('data:')) {
+                        const mimeMatch = imgSrc.match(/^data:([^;]+);/);
+                        state.additionalMainImages.push({
+                            dataUrl: imgSrc,
+                            base64: imgSrc.split(',')[1],
+                            mimeType: mimeMatch ? mimeMatch[1] : 'image/jpeg'
+                        });
+                    } else {
+                        // URL-based image - add and fetch base64 in background
+                        const entry = {
+                            dataUrl: imgSrc,
+                            base64: null,
+                            mimeType: 'image/jpeg'
+                        };
+                        state.additionalMainImages.push(entry);
+                        getImageDataFromSource(imgSrc).then(imageData => {
+                            if (imageData) {
+                                entry.base64 = imageData.base64Data;
+                                entry.mimeType = imageData.mimeType;
+                            }
+                        });
+                    }
+                }
+
+                renderMainUploadArea();
+                showStatus(`Loaded "${product.name}" - ${images.length} image${images.length > 1 ? 's' : ''} loaded`, 'success');
             }
         });
 
@@ -12077,8 +12232,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             showPromptgenStatus('Generating prompts...', 'loading');
             $('generatePromptsBtn').disabled = true;
 
-            // Check if product has a reference image
-            const hasProductImage = product && product.referenceImage;
+            // Check if product has reference images
+            const productImages = product ? getProductImages(product) : [];
+            const hasProductImage = productImages.length > 0;
 
             // Build the prompt for Gemini - MEGA PROMPT MODE
             let systemContext = `You are an elite prompt engineer specializing in AI image generation. Your task is to transform simple ideas into comprehensive, highly-detailed "mega prompts" that produce stunning, professional-quality results.
@@ -12109,10 +12265,10 @@ Your mega prompts MUST accurately represent THIS exact product with photorealist
 
             if (product) {
                 systemContext += `\n\nPRODUCT INTELLIGENCE:
-- Product: ${product.name}
 - Description: ${product.description || 'Not specified'}
 ${(product.goldenPhrases || []).length ? `- MANDATORY PHRASES (weave naturally into EVERY prompt): "${product.goldenPhrases.join('", "')}"` : ''}
-${(product.forbiddenWords || []).length ? `- FORBIDDEN TERMS (never use): ${product.forbiddenWords.join(', ')}` : ''}`;
+${(product.forbiddenWords || []).length ? `- FORBIDDEN TERMS (never use): ${product.forbiddenWords.join(', ')}` : ''}
+- IMPORTANT: Do NOT mention the product by name in the generated prompts.`;
             }
 
             if (promptGenSettings.style) {
@@ -12142,8 +12298,8 @@ Return ONLY the numbered prompts (1-${promptGenSettings.count}), each on its own
             const parts = [];
 
             if (hasProductImage) {
-                // Add the product reference image for visual analysis
-                const productImageData = await getImageDataFromSource(product.referenceImage);
+                // Add the product reference image(s) for visual analysis
+                const productImageData = await getImageDataFromSource(productImages[0]);
                 if (productImageData) {
                     parts.push({
                         inlineData: {
@@ -12344,15 +12500,15 @@ A bulleted list of what to explicitly AVOID:
             $('generateMegaPromptBtn').disabled = true;
             $('generatePromptsBtn').disabled = true;
 
-            // Check if product has a reference image
-            const hasProductImage = product && product.referenceImage;
+            // Check if product has reference images
+            const productImages = product ? getProductImages(product) : [];
+            const hasProductImage = productImages.length > 0;
 
             // Build the user message with context
             let userMessage = `INPUT: "${idea}"`;
 
             if (product) {
                 userMessage += `\n\nPRODUCT PROFILE REQUIREMENTS:
-- Product Name: ${product.name}
 - Description: ${product.description || 'Not specified'}`;
                 if ((product.goldenPhrases || []).length) {
                     userMessage += `\n- MANDATORY PHRASES (you MUST weave these naturally into the prompt): "${product.goldenPhrases.join('", "')}"`;
@@ -12360,7 +12516,7 @@ A bulleted list of what to explicitly AVOID:
                 if ((product.forbiddenWords || []).length) {
                     userMessage += `\n- FORBIDDEN TERMS (NEVER use these words): ${product.forbiddenWords.join(', ')}`;
                 }
-                userMessage += `\n\nCRITICAL: The generated Mega Prompt must strictly follow these product requirements.`;
+                userMessage += `\n\nCRITICAL: Do NOT mention the product by name. The generated Mega Prompt must strictly follow these product requirements.`;
             }
 
             if (promptGenSettings.style) {
@@ -12378,7 +12534,7 @@ A bulleted list of what to explicitly AVOID:
             const parts = [];
 
             if (hasProductImage) {
-                const productImageData = await getImageDataFromSource(product.referenceImage);
+                const productImageData = await getImageDataFromSource(productImages[0]);
                 if (productImageData) {
                     parts.push({
                         inlineData: {
