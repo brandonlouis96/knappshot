@@ -9470,6 +9470,64 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
+        async function resubmitBatchJob(jobId) {
+            const job = state.batchJobs.find(j => j.id === jobId);
+            if (!job) return;
+
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                showStatus('Enter API key first', 'error');
+                return;
+            }
+
+            // Cancel the job first if it's still active
+            if (isBatchActive(job.status)) {
+                try {
+                    await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                        { method: 'POST' }
+                    );
+                    job.status = 'JOB_STATE_CANCELLED';
+                    job.completedAt = Date.now();
+                    saveBatchJobs();
+                } catch (e) {
+                    console.error('Error cancelling before resubmit:', e);
+                }
+            }
+
+            // Load the job's prompt into the editor
+            promptInput.value = job.prompt || '';
+
+            // Set the model if it matches an option
+            if (job.model) {
+                const options = apiEndpointInput.querySelectorAll('option');
+                for (const opt of options) {
+                    if (opt.value.includes(job.model)) {
+                        apiEndpointInput.value = opt.value;
+                        break;
+                    }
+                }
+            }
+
+            // Build images from current editor state
+            const imagesToProcess = state.currentImageBase64
+                ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }, ...state.additionalMainImages.map(img => ({ base64: img.base64, mimeType: img.mimeType }))]
+                : [];
+
+            // Set generation count to match original job
+            state.selectedGenerationCount = job.requestCount || 1;
+
+            // Mark old job as resubmitted
+            job.displayName = (job.displayName || '') + ' (resubmitted)';
+            saveBatchJobs();
+            updateReviewUI();
+
+            showStatus('Resubmitting batch job...', 'loading');
+
+            // Submit as new batch
+            await submitBatchJob(imagesToProcess, job.prompt || '');
+        }
+
         function dismissBatchJob(jobId) {
             state.batchJobs = state.batchJobs.filter(j => j.id !== jobId);
             // Track dismissed IDs so cloud sync doesn't resurrect them
@@ -9667,7 +9725,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             ${job.error ? `<div class="batch-job-error">${job.error}</div>` : ''}
                         </div>
                         <div class="batch-job-actions">
+                            ${isActive ? `<button class="review-btn" onclick="resubmitBatchJob('${job.id}')" title="Cancel and resubmit">Resubmit</button>` : ''}
                             ${isActive ? `<button class="review-btn danger" onclick="cancelBatchJob('${job.id}')">Cancel</button>` : ''}
+                            ${!isActive && (isBatchFailed(job.status) || isBatchCancelled(job.status)) ? `<button class="review-btn" onclick="resubmitBatchJob('${job.id}')" title="Resubmit this job">Resubmit</button>` : ''}
                             ${!isActive ? `<button class="review-btn" onclick="dismissBatchJob('${job.id}')">Dismiss</button>` : ''}
                         </div>
                     </div>
