@@ -4410,6 +4410,136 @@
             flex-shrink: 0;
         }
 
+        /* JSON Import Section */
+        .json-import-section {
+            margin-top: 20px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .json-import-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+            background: var(--bg-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .json-import-header:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        .json-import-toggle {
+            font-size: 1.2rem;
+            font-weight: 300;
+            transition: transform 0.2s;
+        }
+        .json-import-body {
+            padding: 16px;
+            background: var(--bg-card);
+        }
+        .json-import-hint {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .json-import-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .json-import-preview {
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 12px;
+            background: var(--bg-secondary);
+        }
+        .json-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-highlight);
+        }
+        .json-preview-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .json-preview-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+        }
+        .json-preview-item-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .json-preview-item-meta {
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .json-preview-item-meta span {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .json-preview-item.done {
+            opacity: 0.5;
+            border-color: var(--color-green);
+        }
+        .json-preview-item.active {
+            border-color: var(--color-purple);
+        }
+        .json-import-progress {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .json-progress-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .json-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-purple), var(--color-pink));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .json-schema-modal pre {
+            background: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            overflow-x: auto;
+            max-height: 400px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: var(--text-primary);
+        }
+
         .review-selection-bar {
             display: none;
             align-items: center;
@@ -5578,8 +5708,58 @@
                 </div>
             </div>
 
+            <div style="margin-bottom: 8px;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">File Label <span style="font-size: 0.7rem; opacity: 0.6;">(Optional)</span></label>
+                <input type="text" id="fileLabelInput" placeholder="e.g. Blue background hero shot" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.85rem; box-sizing: border-box;">
+            </div>
             <button class="submit-btn" id="submitBtn"><span>Generate Edit</span></button>
             <div class="status" id="status"></div>
+
+            <!-- JSON Import Section -->
+            <div class="json-import-section" id="jsonImportSection">
+                <div class="json-import-header" onclick="toggleJsonImport()">
+                    <span>JSON Import</span>
+                    <span class="json-import-toggle" id="jsonImportToggle">+</span>
+                </div>
+                <div class="json-import-body" id="jsonImportBody" style="display: none;">
+                    <p class="json-import-hint">Upload a JSON file to auto-configure and submit jobs. Uses the model selected above. Each job specifies its own prompt, product profile, aspect ratio, and labels.</p>
+                    <div class="json-import-actions">
+                        <input type="file" id="jsonFileInput" class="hidden-input" accept=".json">
+                        <button class="action-btn save" onclick="$('jsonFileInput').click()">Upload JSON</button>
+                        <button class="action-btn" onclick="showJsonSchema()" style="background: var(--bg-tertiary); color: var(--text-secondary);">View Schema</button>
+                        <button class="action-btn" onclick="downloadJsonTemplate()" style="background: var(--bg-tertiary); color: var(--text-secondary);">Download Template</button>
+                    </div>
+                    <div class="json-import-preview" id="jsonImportPreview" style="display: none;">
+                        <div class="json-preview-header">
+                            <span id="jsonPreviewCount">0 jobs loaded</span>
+                            <button class="clear-btn" onclick="clearJsonImport()">Clear All</button>
+                        </div>
+                        <div class="json-preview-list" id="jsonPreviewList"></div>
+                        <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Product Profile:</label>
+                                <select id="jsonProductSelect" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem;">
+                                    <option value="">-- Use JSON per-job --</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Mode:</label>
+                                <div class="option-buttons" id="jsonModeButtons" style="display: inline-flex;">
+                                    <button class="option-btn" data-value="single" onclick="setJsonMode('single')">Single</button>
+                                    <button class="option-btn active" data-value="batch" onclick="setJsonMode('batch')">Batch</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="submit-btn" id="jsonSubmitBtn" onclick="executeJsonImport()" style="margin-top: 12px;">
+                            <span>Submit All Jobs</span>
+                        </button>
+                        <div class="json-import-progress" id="jsonImportProgress" style="display: none;">
+                            <div class="json-progress-bar"><div class="json-progress-fill" id="jsonProgressFill"></div></div>
+                            <span id="jsonProgressText">0/0 submitted</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Gallery Tab -->
@@ -5989,6 +6169,22 @@
                     <button class="action-btn save" id="saveProductBtn">Save Product</button>
                     <button class="clear-btn" onclick="closeModal('productModal')">Cancel</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON Schema Modal -->
+    <div class="modal" id="jsonSchemaModal">
+        <div class="modal-content json-schema-modal" style="position: relative; max-width: 650px;">
+            <button class="modal-close" onclick="closeModal('jsonSchemaModal')">&times;</button>
+            <h3>JSON Import Schema</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+                Each job in the <code>jobs</code> array will be submitted as a separate batch. All fields are optional except <code>prompt</code>.
+            </p>
+            <pre id="jsonSchemaContent"></pre>
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button class="action-btn save" onclick="copyJsonSchema()">Copy Schema</button>
+                <button class="clear-btn" onclick="closeModal('jsonSchemaModal')">Close</button>
             </div>
         </div>
     </div>
@@ -8634,7 +8830,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 const link = document.createElement('a');
                 link.href = dataUrl;
-                link.download = `knappshot-${Date.now()}.${state.exportFormat}`;
+                const fileLabel = $('fileLabelInput')?.value?.trim();
+                const safeName = fileLabel ? fileLabel.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '-') : null;
+                link.download = safeName ? `${safeName}.${state.exportFormat}` : `knappshot-${Date.now()}.${state.exportFormat}`;
                 link.click();
             };
             img.src = state.exportImageSrc;
@@ -9075,6 +9273,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         async function submitBatchJob(imagesToProcess, prompt) {
+            console.log(`Batch submit: ${imagesToProcess.length} image(s), prompt length: ${prompt.length}`);
             const apiKey = apiKeyInput.value.trim();
             const endpointUrl = apiEndpointInput.value.trim();
             const modelName = extractModelName(endpointUrl);
@@ -9168,7 +9367,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 submitBtn.disabled = true;
 
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
+                    `/api/gemini-batch/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -9291,7 +9490,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 try {
                     const response = await fetch(
-                        `https://generativelanguage.googleapis.com/v1beta/${job.batchName}?key=${encodeURIComponent(apiKey)}`
+                        `/api/gemini-batch-poll/${job.batchName}?key=${encodeURIComponent(apiKey)}`
                     );
 
                     if (!response.ok) {
@@ -9300,7 +9499,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     }
 
                     const opData = await response.json();
-                    console.log(`Poll ${job.model} [${elapsedMin}m]:`, opData.done, opData.metadata?.state);
+                    console.log(`Poll ${job.model} [${elapsedMin}m]: done=${opData.done}, state=${opData.metadata?.state}, hasResponse=${!!opData.response}`);
                     // The response is an Operation object with metadata.state
                     const batchMeta = opData.metadata || {};
                     const newStatus = batchMeta.state || (opData.done ? 'JOB_STATE_SUCCEEDED' : job.status);
@@ -9311,14 +9510,22 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         saveBatchJobs();
                     }
 
-                    if (newStatus !== job.status) {
+                    // Check if job is done (via done flag OR status change) and results not yet processed
+                    const isDone = opData.done === true || isBatchDone(newStatus);
+                    const statusChanged = newStatus !== job.status;
+
+                    if (isDone && !job.resultsProcessed) {
+                        // Job completed — extract results regardless of status change
+                        job.status = isBatchDone(newStatus) ? newStatus : 'JOB_STATE_SUCCEEDED';
+                        job.completedAt = Date.now();
+                        console.log(`Batch job ${job.id} completed, extracting results...`);
+                        await extractBatchResults(job, opData);
+                        saveBatchJobs();
+                        updateReviewUI();
+                    } else if (statusChanged) {
                         job.status = newStatus;
 
-                        if ((isBatchDone(newStatus) || opData.done) && !job.resultsProcessed) {
-                            job.completedAt = Date.now();
-                            // Results may be in opData.response or need to be downloaded
-                            await extractBatchResults(job, opData);
-                        } else if (isBatchFailed(newStatus)) {
+                        if (isBatchFailed(newStatus)) {
                             job.completedAt = Date.now();
                             job.error = opData.error?.message || batchMeta.error?.message || 'Batch job failed';
                             addNotification('error', 'Batch Failed', `"${job.displayName}" failed: ${job.error}`, null);
@@ -9383,7 +9590,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     if (outputFile) {
                         // Download the results file
                         const fileResp = await fetch(
-                            `https://generativelanguage.googleapis.com/download/v1beta/${outputFile}:download?alt=media&key=${encodeURIComponent(apiKey)}`
+                            `/api/gemini-batch-download/${outputFile}:download?alt=media&key=${encodeURIComponent(apiKey)}`
                         );
                         if (fileResp.ok) {
                             const fileText = await fileResp.text();
@@ -9451,7 +9658,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const apiKey = apiKeyInput.value.trim();
             try {
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                    `/api/gemini-batch-poll/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
                     { method: 'POST' }
                 );
 
@@ -9484,7 +9691,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (isBatchActive(job.status)) {
                 try {
                     await fetch(
-                        `https://generativelanguage.googleapis.com/v1beta/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                        `/api/gemini-batch-poll/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
                         { method: 'POST' }
                     );
                     job.status = 'JOB_STATE_CANCELLED';
@@ -9558,6 +9765,398 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 Storage.set('dismissedBatchJobIds', dismissed);
             }
             saveBatchJobs();
+            updateReviewUI();
+        }
+
+        // ========== JSON IMPORT ==========
+        let pendingJsonJobs = [];
+        let jsonImportMode = 'batch';
+
+        const JSON_TEMPLATE = {
+            jobs: [
+                {
+                    prompt: "Your image generation or editing prompt goes here",
+                    productProfile: "Product Name",
+                    aspectRatio: "4:5",
+                    resolution: "1K",
+                    generations: 1,
+                    batchLabel: "My batch label",
+                    fileLabel: "my-file-label"
+                },
+                {
+                    prompt: "Another prompt for a different shot",
+                    productProfile: "Product Name",
+                    aspectRatio: "1:1",
+                    resolution: "1K",
+                    generations: 1,
+                    batchLabel: "Another batch label",
+                    fileLabel: "another-file-label"
+                }
+            ]
+        };
+
+        const JSON_SCHEMA_DOCS = `{
+  "jobs": [
+    {
+      "prompt": "(required) The image editing/generation prompt",
+
+      "productProfile": "(optional) Product profile name to load
+          images from. Must match an existing profile name.",
+
+      "aspectRatio": "(optional) Options:
+          "1:1", "16:9", "9:16", "4:3", "3:4",
+          "4:5", "3:2", "2:3", "8:1", "1:8",
+          "4:1", "1:4"
+          Default: "1:1"",
+
+      "resolution": "(optional) "1K", "2K", or "4K"
+          Default: "1K"",
+
+      "generations": "(optional) 1-4. Images per job.
+          Default: 1",
+
+      "batchLabel": "(optional) Label for the batch job",
+
+      "fileLabel": "(optional) Label for filename when
+          saving/exporting"
+    }
+  ]
+
+  Model and mode (single/batch) are selected in the
+  app UI before submitting.
+}`;
+
+        function toggleJsonImport() {
+            const body = $('jsonImportBody');
+            const toggle = $('jsonImportToggle');
+            if (body.style.display === 'none') {
+                body.style.display = 'block';
+                toggle.textContent = '−';
+            } else {
+                body.style.display = 'none';
+                toggle.textContent = '+';
+            }
+        }
+
+        function setJsonMode(mode) {
+            jsonImportMode = mode;
+            $('jsonModeButtons')?.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === mode);
+            });
+        }
+
+        function showJsonSchema() {
+            $('jsonSchemaContent').textContent = JSON_SCHEMA_DOCS;
+            $('jsonSchemaModal').classList.add('active');
+        }
+
+        function copyJsonSchema() {
+            navigator.clipboard.writeText(JSON.stringify(JSON_TEMPLATE, null, 2));
+            showStatus('Template copied to clipboard!', 'success');
+        }
+
+        function downloadJsonTemplate() {
+            const blob = new Blob([JSON.stringify(JSON_TEMPLATE, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'knappshot-template.json';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function clearJsonImport() {
+            pendingJsonJobs = [];
+            $('jsonImportPreview').style.display = 'none';
+            $('jsonImportProgress').style.display = 'none';
+            $('jsonFileInput').value = '';
+        }
+
+        $('jsonFileInput')?.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                if (!data.jobs || !Array.isArray(data.jobs) || data.jobs.length === 0) {
+                    showStatus('JSON must contain a "jobs" array with at least one job', 'error');
+                    return;
+                }
+
+                // Validate each job has a prompt
+                for (let i = 0; i < data.jobs.length; i++) {
+                    if (!data.jobs[i].prompt || !data.jobs[i].prompt.trim()) {
+                        showStatus(`Job ${i + 1} is missing a "prompt" field`, 'error');
+                        return;
+                    }
+                }
+
+                pendingJsonJobs = data.jobs;
+                renderJsonPreview();
+                $('jsonImportPreview').style.display = 'block';
+                showStatus(`${data.jobs.length} batch job${data.jobs.length > 1 ? 's' : ''} loaded from JSON`, 'success');
+            } catch (err) {
+                showStatus('Invalid JSON file: ' + err.message, 'error');
+            }
+        });
+
+        function renderJsonPreview() {
+            const activeJobs = pendingJsonJobs.filter(j => !j._removed);
+            $('jsonPreviewCount').textContent = `${activeJobs.length} job${activeJobs.length > 1 ? 's' : ''} loaded`;
+            $('jsonPreviewList').innerHTML = pendingJsonJobs.map((job, i) => {
+                if (job._removed) return '';
+                const status = job._status || 'pending';
+                const canRemove = status === 'pending';
+                return `
+                    <div class="json-preview-item ${status}">
+                        <div class="json-preview-item-title" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>${i + 1}. ${escapeHtml(job.batchLabel || job.prompt.substring(0, 60))}${job.prompt.length > 60 && !job.batchLabel ? '...' : ''}</span>
+                            ${canRemove ? `<button onclick="removeJsonJob(${i})" style="background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 1.1rem; padding: 0 4px; line-height: 1;" title="Remove">&times;</button>` : ''}
+                        </div>
+                        <div class="json-preview-item-meta">
+                            ${job.productProfile ? `<span>${escapeHtml(job.productProfile)}</span>` : ''}
+                            <span>${job.aspectRatio || '1:1'}</span>
+                            <span>${job.resolution || '1K'}</span>
+                            <span>${job.generations || 1}x</span>
+                            ${job.fileLabel ? `<span>${escapeHtml(job.fileLabel)}</span>` : ''}
+                            <span style="margin-left: auto; font-style: italic;">${status === 'done' ? 'submitted' : status === 'active' ? 'submitting...' : status === 'failed' ? 'failed' : 'pending'}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Update product profile dropdown
+            updateJsonProductSelect();
+
+            if (activeJobs.length === 0) {
+                $('jsonImportPreview').style.display = 'none';
+            }
+        }
+
+        function removeJsonJob(index) {
+            pendingJsonJobs[index]._removed = true;
+            renderJsonPreview();
+        }
+
+        function updateJsonProductSelect() {
+            const select = $('jsonProductSelect');
+            if (!select) return;
+            const currentVal = select.value;
+            const productsWithImages = state.products.filter(p => getProductImages(p).length > 0);
+            select.innerHTML = '<option value="">-- Use JSON per-job --</option>' +
+                productsWithImages.map(p =>
+                    `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`
+                ).join('');
+            select.value = currentVal;
+        }
+
+        function setOptionButton(containerId, value, stateKey, parser) {
+            const container = $(containerId);
+            if (!container) return;
+            container.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === String(value));
+            });
+            state[stateKey] = parser ? parser(value) : value;
+        }
+
+        async function loadProductImagesForJob(productName) {
+            const product = state.products.find(p => p.name.toLowerCase() === productName.toLowerCase());
+            if (!product) {
+                console.warn(`Product profile "${productName}" not found`);
+                return;
+            }
+            const images = getProductImages(product);
+            if (images.length === 0) return;
+
+            state.activeProductId = product.id;
+            const mainImage = images[0];
+            state.currentImage = mainImage;
+            state.originalImage = mainImage;
+            state.additionalMainImages = [];
+
+            if (mainImage.startsWith('data:')) {
+                const mimeMatch = mainImage.match(/^data:([^;]+);/);
+                state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                state.currentImageBase64 = mainImage.split(',')[1];
+            } else {
+                const imageData = await getImageDataFromSource(mainImage);
+                if (imageData) {
+                    state.currentImageBase64 = imageData.base64Data;
+                    state.currentImageMimeType = imageData.mimeType;
+                }
+            }
+
+            for (let idx = 1; idx < images.length; idx++) {
+                const imgSrc = images[idx];
+                if (imgSrc.startsWith('data:')) {
+                    const mimeMatch = imgSrc.match(/^data:([^;]+);/);
+                    state.additionalMainImages.push({
+                        dataUrl: imgSrc,
+                        base64: imgSrc.split(',')[1],
+                        mimeType: mimeMatch ? mimeMatch[1] : 'image/jpeg'
+                    });
+                } else {
+                    const imageData = await getImageDataFromSource(imgSrc);
+                    if (imageData) {
+                        state.additionalMainImages.push({
+                            dataUrl: imgSrc,
+                            base64: imageData.base64Data,
+                            mimeType: imageData.mimeType
+                        });
+                    }
+                }
+            }
+        }
+
+        function getImagesToProcess() {
+            return state.currentImageBase64
+                ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }, ...state.additionalMainImages.map(img => ({ base64: img.base64, mimeType: img.mimeType }))]
+                    .filter(img => img.base64)
+                : [];
+        }
+
+        async function executeSingleJob(prompt, imagesToProcess) {
+            const apiEndpoint = apiEndpointInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+
+            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)', '8:1': 'ultra-wide (8:1)', '1:8': 'ultra-tall (1:8)', '4:1': 'panoramic (4:1)', '1:4': 'tall banner (1:4)' };
+            const resMap = { '1K': '1024px', '2K': '2048px', '4K': '4096px' };
+
+            const systemInstructions = $('systemInstructions')?.value?.trim() || '';
+            let fullPrompt = systemInstructions ? `[System Instructions: ${systemInstructions}] ` : '';
+            fullPrompt += prompt;
+            fullPrompt += `. Output in ${aspectMap[state.selectedAspectRatio] || 'square (1:1)'} at ${resMap[state.selectedResolution] || '1024px'}.`;
+
+            const isTextToImage = imagesToProcess.length === 0;
+            const results = [];
+
+            for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                const parts = [];
+                if (!isTextToImage) {
+                    imagesToProcess.forEach(imgData => {
+                        parts.push({ inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } });
+                    });
+                }
+                state.referenceImages.forEach(ref => {
+                    if (ref.base64) parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                });
+                parts.push({ text: fullPrompt });
+
+                const requestBody = {
+                    contents: [{ parts }],
+                    generationConfig: getGenerationConfig()
+                };
+                const tools = getTools();
+                if (tools) requestBody.tools = tools;
+
+                const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const data = await response.json();
+
+                if (data.candidates) {
+                    for (const candidate of data.candidates) {
+                        for (const part of candidate.content?.parts || []) {
+                            if (part.inlineData) {
+                                const mimeType = part.inlineData.mimeType || 'image/png';
+                                results.push(`data:${mimeType};base64,${part.inlineData.data}`);
+                            }
+                        }
+                    }
+                }
+            }
+            return results;
+        }
+
+        async function executeJsonImport() {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                showStatus('Enter API key first', 'error');
+                return;
+            }
+
+            if (pendingJsonJobs.length === 0) return;
+
+            const btn = $('jsonSubmitBtn');
+            btn.disabled = true;
+            btn.querySelector('span').textContent = 'Submitting...';
+            $('jsonImportProgress').style.display = 'flex';
+
+            const isBatchMode = jsonImportMode === 'batch';
+            const uiProductOverride = $('jsonProductSelect')?.value || '';
+            let completed = 0;
+            let lastProductName = null;
+            const activeJobs = pendingJsonJobs.filter(j => !j._removed);
+
+            for (let i = 0; i < pendingJsonJobs.length; i++) {
+                const job = pendingJsonJobs[i];
+                if (job._removed) continue;
+                job._status = 'active';
+                renderJsonPreview();
+
+                try {
+                    // Use UI product override if set, otherwise use JSON per-job
+                    const productName = uiProductOverride || job.productProfile;
+
+                    // Load product images (skip if same product as last job)
+                    if (productName && productName !== lastProductName) {
+                        await loadProductImagesForJob(productName);
+                        lastProductName = productName;
+                    } else if (!productName) {
+                        lastProductName = null;
+                    }
+
+                    // Configure settings
+                    setOptionButton('aspectRatioButtons', job.aspectRatio || '1:1', 'selectedAspectRatio');
+                    setOptionButton('resolutionButtons', job.resolution || '1K', 'selectedResolution');
+                    setOptionButton('generationCountButtons', String(job.generations || 1), 'selectedGenerationCount', v => parseInt(v));
+
+                    // Set labels
+                    if ($('batchLabelInput')) $('batchLabelInput').value = job.batchLabel || '';
+                    if ($('fileLabelInput')) $('fileLabelInput').value = job.fileLabel || '';
+                    promptInput.value = job.prompt;
+
+                    const imagesToProcess = getImagesToProcess();
+
+                    if (isBatchMode) {
+                        // Set batch mode in UI
+                        state.mode = 'batch';
+                        $('modeButtons')?.querySelectorAll('.option-btn').forEach(b => b.classList.toggle('active', b.dataset.value === 'batch'));
+                        toggleBatchMode();
+                        await submitBatchJob(imagesToProcess, job.prompt);
+                    } else {
+                        // Single mode — generate and send results to review
+                        state.mode = 'single';
+                        showStatus(`Processing job ${i + 1}/${pendingJsonJobs.length}: "${job.batchLabel || job.prompt.substring(0, 40)}..."`, 'loading');
+                        const results = await executeSingleJob(job.prompt, imagesToProcess);
+                        const label = job.batchLabel || job.fileLabel || null;
+                        for (const imgSrc of results) {
+                            addToReview(imgSrc, job.prompt, null, label);
+                        }
+                    }
+
+                    job._status = 'done';
+                } catch (err) {
+                    console.error(`JSON import job ${i + 1} failed:`, err);
+                    job._status = 'failed';
+                }
+
+                completed++;
+                const pct = Math.round((completed / activeJobs.length) * 100);
+                $('jsonProgressFill').style.width = pct + '%';
+                $('jsonProgressText').textContent = `${completed}/${activeJobs.length} submitted`;
+                renderJsonPreview();
+            }
+
+            btn.disabled = false;
+            btn.querySelector('span').textContent = 'Submit All Jobs';
+            showStatus(`${completed}/${activeJobs.length} jobs submitted!`, 'success');
+            renderMainUploadArea();
             updateReviewUI();
         }
 
@@ -10069,12 +10668,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const img = state.generatedImages[index];
             if (!img) return;
 
+            const fileLabel = $('fileLabelInput')?.value?.trim() || null;
             const item = {
                 id: Date.now().toString(),
                 src: img.src,
                 prompt: promptInput.value,
                 date: new Date().toISOString(),
-                favorite: false
+                favorite: false,
+                label: fileLabel
             };
 
             if (currentUser) {
@@ -10974,6 +11575,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             const imagesToProcess = state.currentImageBase64
                 ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }, ...state.additionalMainImages.map(img => ({ base64: img.base64, mimeType: img.mimeType }))]
+                    .filter(img => img.base64) // Filter out images with null base64 (failed to load)
                 : [];
 
             console.log('Generate: Mode:', state.mode);
@@ -12163,21 +12765,20 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 state.originalImage = mainImage;
                 state.additionalMainImages = [];
 
-                // Extract base64 for first image
+                // Extract base64 for first image — await if URL-based
                 if (mainImage.startsWith('data:')) {
                     const mimeMatch = mainImage.match(/^data:([^;]+);/);
                     state.currentImageMimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
                     state.currentImageBase64 = mainImage.split(',')[1];
                 } else {
-                    getImageDataFromSource(mainImage).then(imageData => {
-                        if (imageData) {
-                            state.currentImageBase64 = imageData.base64Data;
-                            state.currentImageMimeType = imageData.mimeType;
-                        }
-                    });
+                    const imageData = await getImageDataFromSource(mainImage);
+                    if (imageData) {
+                        state.currentImageBase64 = imageData.base64Data;
+                        state.currentImageMimeType = imageData.mimeType;
+                    }
                 }
 
-                // Load remaining images as additional main images in the editor
+                // Load remaining images as additional main images — await each
                 for (let i = 1; i < images.length; i++) {
                     const imgSrc = images[i];
                     if (imgSrc.startsWith('data:')) {
@@ -12188,19 +12789,21 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             mimeType: mimeMatch ? mimeMatch[1] : 'image/jpeg'
                         });
                     } else {
-                        // URL-based image - add and fetch base64 in background
-                        const entry = {
-                            dataUrl: imgSrc,
-                            base64: null,
-                            mimeType: 'image/jpeg'
-                        };
-                        state.additionalMainImages.push(entry);
-                        getImageDataFromSource(imgSrc).then(imageData => {
-                            if (imageData) {
-                                entry.base64 = imageData.base64Data;
-                                entry.mimeType = imageData.mimeType;
-                            }
-                        });
+                        const imageData = await getImageDataFromSource(imgSrc);
+                        if (imageData) {
+                            state.additionalMainImages.push({
+                                dataUrl: imgSrc,
+                                base64: imageData.base64Data,
+                                mimeType: imageData.mimeType
+                            });
+                        } else {
+                            // Still add so the thumbnail shows, but mark base64 null
+                            state.additionalMainImages.push({
+                                dataUrl: imgSrc,
+                                base64: null,
+                                mimeType: 'image/jpeg'
+                            });
+                        }
                     }
                 }
 
