@@ -9272,6 +9272,21 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             return { total, imageCost, tokenCost, inputTokens, outputTextTokens, thinkingTokens };
         }
 
+        // Use Vite proxy on localhost, direct Google URLs on production (GitHub Pages)
+        const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        function batchUrl(path) {
+            if (isLocalDev) return `/api/gemini-batch/${path}`;
+            return `https://generativelanguage.googleapis.com/v1beta/${path}`;
+        }
+        function batchPollUrl(path) {
+            if (isLocalDev) return `/api/gemini-batch-poll/${path}`;
+            return `https://generativelanguage.googleapis.com/v1beta/${path}`;
+        }
+        function batchDownloadUrl(path) {
+            if (isLocalDev) return `/api/gemini-batch-download/${path}`;
+            return `https://generativelanguage.googleapis.com/download/v1beta/${path}`;
+        }
+
         async function submitBatchJob(imagesToProcess, prompt) {
             console.log(`Batch submit: ${imagesToProcess.length} image(s), prompt length: ${prompt.length}`);
             const apiKey = apiKeyInput.value.trim();
@@ -9367,7 +9382,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 submitBtn.disabled = true;
 
                 const response = await fetch(
-                    `/api/gemini-batch/models/${modelId}:batchGenerateContent?key=${encodeURIComponent(apiKey)}`,
+                    `${batchUrl(`models/${modelId}:batchGenerateContent`)}?key=${encodeURIComponent(apiKey)}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -9490,7 +9505,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 try {
                     const response = await fetch(
-                        `/api/gemini-batch-poll/${job.batchName}?key=${encodeURIComponent(apiKey)}`
+                        `${batchPollUrl(job.batchName)}?key=${encodeURIComponent(apiKey)}`
                     );
 
                     if (!response.ok) {
@@ -9590,7 +9605,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     if (outputFile) {
                         // Download the results file
                         const fileResp = await fetch(
-                            `/api/gemini-batch-download/${outputFile}:download?alt=media&key=${encodeURIComponent(apiKey)}`
+                            `${batchDownloadUrl(`${outputFile}:download`)}?alt=media&key=${encodeURIComponent(apiKey)}`
                         );
                         if (fileResp.ok) {
                             const fileText = await fileResp.text();
@@ -9658,7 +9673,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const apiKey = apiKeyInput.value.trim();
             try {
                 const response = await fetch(
-                    `/api/gemini-batch-poll/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                    `${batchPollUrl(`${job.batchName}:cancel`)}?key=${encodeURIComponent(apiKey)}`,
                     { method: 'POST' }
                 );
 
@@ -9691,7 +9706,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             if (isBatchActive(job.status)) {
                 try {
                     await fetch(
-                        `/api/gemini-batch-poll/${job.batchName}:cancel?key=${encodeURIComponent(apiKey)}`,
+                        `${batchPollUrl(`${job.batchName}:cancel`)}?key=${encodeURIComponent(apiKey)}`,
                         { method: 'POST' }
                     );
                     job.status = 'JOB_STATE_CANCELLED';
