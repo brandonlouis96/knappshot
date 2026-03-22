@@ -5817,7 +5817,8 @@
                 <span class="review-selection-count" id="reviewSelectionCount">0 selected</span>
                 <div class="review-selection-actions">
                     <button class="review-btn" onclick="selectAllReview()">Select All</button>
-                    <button class="review-btn primary" onclick="approveSelectedReview()">Add Selected to Gallery</button>
+                    <button class="review-btn" onclick="exportSelectedReview()" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff;">Export to Computer</button>
+                    <button class="review-btn primary" onclick="approveSelectedReview()">Add to Gallery</button>
                     <button class="review-btn danger" onclick="rejectSelectedReview()">Discard Selected</button>
                 </div>
             </div>
@@ -10467,6 +10468,90 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             state.reviewSelectMode = false;
             $('reviewSelectModeBtn').textContent = 'Select';
             updateReviewUI();
+        }
+
+        async function exportSelectedReview() {
+            const selected = state.reviewItems.filter(i => i.selected);
+            if (selected.length === 0) return;
+
+            const btn = document.querySelector('[onclick="exportSelectedReview()"]');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Preparing...';
+
+            try {
+                if (selected.length === 1) {
+                    // Single image — download directly as PNG
+                    const item = selected[0];
+                    const blob = await convertImageToBlob(item.src, 'png', 1);
+                    const filename = buildReviewFilename(item, 'png');
+                    triggerDownload(blob, filename);
+                } else {
+                    // Multiple images — ZIP them
+                    const zip = new JSZip();
+                    const labelCounts = {};
+
+                    for (let i = 0; i < selected.length; i++) {
+                        const item = selected[i];
+                        btn.textContent = `Processing ${i + 1}/${selected.length}...`;
+                        const blob = await convertImageToBlob(item.src, 'png', 1);
+                        let filename = buildReviewFilename(item, 'png');
+
+                        // Deduplicate filenames within this export
+                        if (labelCounts[filename]) {
+                            labelCounts[filename]++;
+                            const parts = filename.split('.');
+                            const ext = parts.pop();
+                            filename = `${parts.join('.')} ${labelCounts[filename]}.${ext}`;
+                        } else {
+                            labelCounts[filename] = 1;
+                        }
+
+                        zip.file(filename, blob);
+                    }
+
+                    btn.textContent = 'Creating ZIP...';
+                    const zipBlob = await zip.generateAsync({
+                        type: 'blob',
+                        compression: 'DEFLATE',
+                        compressionOptions: { level: 6 }
+                    });
+
+                    // Use the batch label as ZIP name if all items share the same label
+                    const labels = [...new Set(selected.map(i => i.batchLabel).filter(Boolean))];
+                    const zipName = labels.length === 1
+                        ? `${labels[0].replace(/[<>:"/\\|?*]+/g, '').trim()}.zip`
+                        : `knappshot-review-${Date.now()}.zip`;
+
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(zipBlob);
+                    link.download = zipName;
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                }
+
+                showStatus(`Exported ${selected.length} image${selected.length > 1 ? 's' : ''}!`, 'success');
+            } catch (err) {
+                console.error('Review export error:', err);
+                showStatus('Export failed: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        function buildReviewFilename(item, ext) {
+            if (item.batchLabel) {
+                const safe = item.batchLabel.replace(/[<>:"/\\|?*]+/g, '').replace(/\s+/g, ' ').trim();
+                // Find position among review items with same label
+                const siblings = state.reviewItems
+                    .filter(i => i.batchLabel === item.batchLabel)
+                    .sort((a, b) => a.generatedAt - b.generatedAt);
+                if (siblings.length <= 1) return `${safe}.${ext}`;
+                const pos = siblings.findIndex(i => i.id === item.id) + 1;
+                return `${safe} ${pos}.${ext}`;
+            }
+            return `knappshot-${item.id}.${ext}`;
         }
 
         function clearReview() {
