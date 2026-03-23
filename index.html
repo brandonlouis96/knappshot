@@ -9412,6 +9412,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
                 console.log('Batch submission response:', JSON.stringify(batchData, null, 2));
 
+                const fileLabel = $('fileLabelInput')?.value?.trim() || null;
                 const job = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                     batchName: batchData.name || batchData.metadata?.name,
@@ -9424,7 +9425,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     prompt: prompt,
                     model: modelId,
                     resolution: state.selectedResolution || '1K',
-                    error: null
+                    error: null,
+                    fileLabel: fileLabel
                 };
 
                 state.batchJobs.unshift(job);
@@ -9565,6 +9567,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             // Pass custom batch label to review items (null if auto-generated)
             const batchLabel = job.displayName && !job.displayName.startsWith('KnappShot batch - ')
                 ? job.displayName : null;
+            const fileLabel = job.fileLabel || null;
 
             try {
                 // Google nests results at metadata.output.inlinedResponses.inlinedResponses
@@ -9588,7 +9591,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             );
                             if (imagePart) {
                                 const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                                addToReview(imageSrc, job.prompt, null, batchLabel);
+                                addToReview(imageSrc, job.prompt, null, batchLabel, fileLabel);
                                 successCount++;
                             } else {
                                 failCount++;
@@ -9621,7 +9624,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                     );
                                     if (imagePart) {
                                         const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                                        addToReview(imageSrc, job.prompt, null, batchLabel);
+                                        addToReview(imageSrc, job.prompt, null, batchLabel, fileLabel);
                                         successCount++;
                                     } else {
                                         failCount++;
@@ -10150,9 +10153,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         state.mode = 'single';
                         showStatus(`Processing job ${i + 1}/${pendingJsonJobs.length}: "${job.batchLabel || job.prompt.substring(0, 40)}..."`, 'loading');
                         const results = await executeSingleJob(job.prompt, imagesToProcess);
-                        const label = job.batchLabel || job.fileLabel || null;
+                        const label = job.batchLabel || null;
                         for (const imgSrc of results) {
-                            addToReview(imgSrc, job.prompt, null, label);
+                            addToReview(imgSrc, job.prompt, null, label, job.fileLabel || null);
                         }
                     }
 
@@ -10186,7 +10189,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         const approveAllBtn = $('approveAllBtn');
         const clearReviewBtn = $('clearReviewBtn');
 
-        function addToReview(imageSrc, prompt, originalImage = null, batchLabel = null) {
+        function addToReview(imageSrc, prompt, originalImage = null, batchLabel = null, fileLabel = null) {
             const item = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 src: imageSrc,
@@ -10194,6 +10197,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 generatedAt: Date.now(),
                 originalImage: originalImage,
                 batchLabel: batchLabel || null,
+                fileLabel: fileLabel || null,
                 selected: false
             };
             state.reviewItems.unshift(item);
@@ -10411,7 +10415,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 prompt: item.prompt,
                 date: new Date().toISOString(),
                 favorite: false,
-                batchLabel: item.batchLabel || null
+                batchLabel: item.batchLabel || null,
+                fileLabel: item.fileLabel || null
             };
 
             if (currentUser) {
@@ -10541,6 +10546,10 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function buildReviewFilename(item, ext) {
+            if (item.fileLabel) {
+                const safe = item.fileLabel.replace(/[<>:"/\\|?*]+/g, '').replace(/\s+/g, '-').trim();
+                return `${safe}.${ext}`;
+            }
             if (item.batchLabel) {
                 const safe = item.batchLabel.replace(/[<>:"/\\|?*]+/g, '').replace(/\s+/g, ' ').trim();
                 // Find position among review items with same label
@@ -11272,6 +11281,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const images = state.currentGalleryItems.map(item => ({
                 src: item.src,
                 batchLabel: item.batchLabel || null,
+                fileLabel: item.fileLabel || null,
                 galleryId: item.id
             }));
             openLightbox(images, index, 'gallery');
@@ -11441,6 +11451,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             try {
                 const zip = new JSZip();
                 const selectedItems = state.gallery.filter(item => selectedGalleryIds.has(item.id));
+                const labelCounts = {};
 
                 let processed = 0;
 
@@ -11451,9 +11462,26 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     // Convert image to desired format
                     const blob = await convertImageToBlob(item.src, format, quality);
                     const ext = format === 'jpeg' ? 'jpg' : format;
-                    const filename = item.batchLabel
-                        ? buildBatchFilename(item.batchLabel, ext, item.id)
-                        : `knappshot-${item.id}.${ext}`;
+                    let filename;
+                    if (item.fileLabel) {
+                        const safe = item.fileLabel.replace(/[<>:"/\\|?*]+/g, '').replace(/\s+/g, '-').trim();
+                        filename = `${safe}.${ext}`;
+                    } else if (item.batchLabel) {
+                        filename = buildBatchFilename(item.batchLabel, ext, item.id);
+                    } else {
+                        filename = `knappshot-${item.id}.${ext}`;
+                    }
+
+                    // Deduplicate filenames within this export
+                    if (labelCounts[filename]) {
+                        labelCounts[filename]++;
+                        const parts = filename.split('.');
+                        const fext = parts.pop();
+                        filename = `${parts.join('.')} ${labelCounts[filename]}.${fext}`;
+                    } else {
+                        labelCounts[filename] = 1;
+                    }
+
                     zip.file(filename, blob);
                 }
 
@@ -11925,9 +11953,15 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         async function downloadLightboxImage() {
             const img = lightboxImages[lightboxIndex];
             const src = img.src || img;
-            const filename = img.batchLabel
-                ? buildBatchFilename(img.batchLabel, 'png', img.galleryId)
-                : `knappshot-${Date.now()}.png`;
+            let filename;
+            if (img.fileLabel) {
+                const safe = img.fileLabel.replace(/[<>:"/\\|?*]+/g, '').replace(/\s+/g, '-').trim();
+                filename = `${safe}.png`;
+            } else if (img.batchLabel) {
+                filename = buildBatchFilename(img.batchLabel, 'png', img.galleryId);
+            } else {
+                filename = `knappshot-${Date.now()}.png`;
+            }
 
             showStatus('Preparing download...', 'info');
 
