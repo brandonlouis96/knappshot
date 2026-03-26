@@ -6347,6 +6347,103 @@
         let currentUser = null;
 
         // ========== STORAGE ==========
+        // ========== INDEXEDDB FOR LARGE DATA (review images) ==========
+        const ReviewImageDB = {
+            dbName: 'knappshot_review_images',
+            storeName: 'images',
+            _db: null,
+
+            async open() {
+                if (this._db) return this._db;
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+                    request.onupgradeneeded = (e) => {
+                        e.target.result.createObjectStore(this.storeName);
+                    };
+                    request.onsuccess = (e) => {
+                        this._db = e.target.result;
+                        resolve(this._db);
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            async save(id, src) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, 'readwrite');
+                        tx.objectStore(this.storeName).put(src, id);
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                } catch (e) {
+                    console.error('ReviewImageDB save error:', e);
+                    return false;
+                }
+            },
+
+            async get(id) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, 'readonly');
+                        const request = tx.objectStore(this.storeName).get(id);
+                        request.onsuccess = () => resolve(request.result || null);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (e) {
+                    console.error('ReviewImageDB get error:', e);
+                    return null;
+                }
+            },
+
+            async delete(id) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, 'readwrite');
+                        tx.objectStore(this.storeName).delete(id);
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                } catch (e) {
+                    console.error('ReviewImageDB delete error:', e);
+                    return false;
+                }
+            },
+
+            async deleteMany(ids) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, 'readwrite');
+                        const store = tx.objectStore(this.storeName);
+                        for (const id of ids) store.delete(id);
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                } catch (e) {
+                    console.error('ReviewImageDB deleteMany error:', e);
+                    return false;
+                }
+            },
+
+            async getAllKeys() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.storeName, 'readonly');
+                        const request = tx.objectStore(this.storeName).getAllKeys();
+                        request.onsuccess = () => resolve(request.result || []);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (e) {
+                    return [];
+                }
+            }
+        };
+
         const Storage = {
             get(key, defaultVal = null) {
                 try {
@@ -7133,12 +7230,18 @@
             if (!currentUser) return;
             try {
                 // Save settings (API key, system instructions, active product, etc.)
+                // Strip image data from review items before cloud save (images are in IndexedDB)
+                const strippedReviewItems = state.reviewItems.map(item => ({
+                    ...item,
+                    src: item.src?.startsWith('data:') ? `idb:${item.id}` : item.src,
+                    originalImage: item.originalImage?.startsWith('data:') ? `idb:${item.id}_original` : item.originalImage
+                }));
                 await saveSettingsToCloud({
                     apiKey: apiKeyInput.value,
                     systemInstructions: $('systemInstructions').value,
                     activeProductId: state.activeProductId,
                     prompts: state.prompts,
-                    reviewItems: state.reviewItems,
+                    reviewItems: strippedReviewItems,
                     collections: state.collections,
                     batchJobs: state.batchJobs,
                     imageModel: apiEndpointInput.value,
@@ -10180,6 +10283,38 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         // ========== REVIEW SYSTEM ==========
+        // Hydrate review items: restore image data from IndexedDB for items with idb: references
+        async function hydrateReviewItems() {
+            let changed = false;
+            for (const item of state.reviewItems) {
+                if (item.src?.startsWith('idb:')) {
+                    const imgData = await ReviewImageDB.get(item.id);
+                    if (imgData) {
+                        item.src = imgData;
+                        changed = true;
+                    }
+                }
+                if (item.originalImage?.startsWith('idb:')) {
+                    const origData = await ReviewImageDB.get(item.id + '_original');
+                    if (origData) {
+                        item.originalImage = origData;
+                        changed = true;
+                    }
+                }
+            }
+            // Remove items whose images couldn't be restored (data lost)
+            const before = state.reviewItems.length;
+            state.reviewItems = state.reviewItems.filter(item => !item.src?.startsWith('idb:'));
+            if (state.reviewItems.length < before) {
+                console.warn(`Removed ${before - state.reviewItems.length} review items with missing image data`);
+                changed = true;
+            }
+            if (changed) updateReviewUI();
+        }
+
+        // Run hydration on load
+        hydrateReviewItems();
+
         const reviewGrid = $('reviewGrid');
         const reviewEmpty = $('reviewEmpty');
         const reviewTabBadge = $('reviewTabBadge');
@@ -10189,7 +10324,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         const approveAllBtn = $('approveAllBtn');
         const clearReviewBtn = $('clearReviewBtn');
 
-        function addToReview(imageSrc, prompt, originalImage = null, batchLabel = null, fileLabel = null) {
+        async function addToReview(imageSrc, prompt, originalImage = null, batchLabel = null, fileLabel = null) {
             const item = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 src: imageSrc,
@@ -10200,14 +10335,22 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 fileLabel: fileLabel || null,
                 selected: false
             };
+            // Store image data in IndexedDB (survives localStorage limits)
+            await ReviewImageDB.save(item.id, imageSrc);
+            if (originalImage) await ReviewImageDB.save(item.id + '_original', originalImage);
             state.reviewItems.unshift(item);
             saveReviewItems();
             updateReviewUI();
         }
 
         function saveReviewItems() {
-            // Always save to localStorage (review items must persist across refreshes like batch jobs)
-            Storage.set('reviewItems', state.reviewItems);
+            // Strip image data before saving to localStorage/cloud (images are in IndexedDB)
+            const stripped = state.reviewItems.map(item => ({
+                ...item,
+                src: item.src?.startsWith('data:') ? `idb:${item.id}` : item.src,
+                originalImage: item.originalImage?.startsWith('data:') ? `idb:${item.id}_original` : item.originalImage
+            }));
+            Storage.set('reviewItems', stripped);
             scheduleCloudSync();
         }
 
@@ -10433,6 +10576,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 Storage.setIfOffline('gallery', state.gallery);
             }
 
+            // Clean up IndexedDB after moving to gallery
+            ReviewImageDB.delete(id);
+            ReviewImageDB.delete(id + '_original');
             state.reviewItems = state.reviewItems.filter(i => i.id !== id);
             saveReviewItems();
             updateReviewUI();
@@ -10441,6 +10587,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function rejectReviewItem(id) {
+            ReviewImageDB.delete(id);
+            ReviewImageDB.delete(id + '_original');
             state.reviewItems = state.reviewItems.filter(i => i.id !== id);
             saveReviewItems();
             updateReviewUI();
@@ -10468,6 +10616,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         function rejectSelectedReview() {
+            const rejected = state.reviewItems.filter(i => i.selected);
+            ReviewImageDB.deleteMany(rejected.flatMap(i => [i.id, i.id + '_original']));
             state.reviewItems = state.reviewItems.filter(i => !i.selected);
             saveReviewItems();
             state.reviewSelectMode = false;
@@ -10565,6 +10715,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function clearReview() {
             if (!confirm('Discard all images in review? This cannot be undone.')) return;
+            // Clean up IndexedDB
+            const ids = state.reviewItems.flatMap(i => [i.id, i.id + '_original']);
+            ReviewImageDB.deleteMany(ids);
             state.reviewItems = [];
             saveReviewItems();
             updateReviewUI();
