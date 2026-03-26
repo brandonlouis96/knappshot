@@ -9520,7 +9520,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                     batchName: batchData.name || batchData.metadata?.name,
                     displayName: displayName,
-                    status: batchData.metadata?.state || batchData.done === false ? 'JOB_STATE_PENDING' : 'JOB_STATE_SUCCEEDED',
+                    status: batchData.metadata?.state || (batchData.done === false ? 'JOB_STATE_PENDING' : 'JOB_STATE_SUCCEEDED'),
                     createdAt: Date.now(),
                     completedAt: null,
                     requestCount: requests.length,
@@ -9694,7 +9694,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             );
                             if (imagePart) {
                                 const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                                addToReview(imageSrc, job.prompt, null, batchLabel, fileLabel);
+                                await addToReview(imageSrc, job.prompt, null, batchLabel, fileLabel);
                                 successCount++;
                             } else {
                                 failCount++;
@@ -9727,7 +9727,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                                     );
                                     if (imagePart) {
                                         const imageSrc = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                                        addToReview(imageSrc, job.prompt, null, batchLabel, fileLabel);
+                                        await addToReview(imageSrc, job.prompt, null, batchLabel, fileLabel);
                                         successCount++;
                                     } else {
                                         failCount++;
@@ -10258,7 +10258,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         const results = await executeSingleJob(job.prompt, imagesToProcess);
                         const label = job.batchLabel || null;
                         for (const imgSrc of results) {
-                            addToReview(imgSrc, job.prompt, null, label, job.fileLabel || null);
+                            await addToReview(imgSrc, job.prompt, null, label, job.fileLabel || null);
                         }
                     }
 
@@ -10595,12 +10595,13 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         async function approveAllReview() {
-            if (state.reviewItems.length === 0) return;
+            const count = state.reviewItems.length;
+            if (count === 0) return;
 
             for (const item of [...state.reviewItems]) {
                 await approveReviewItem(item.id);
             }
-            showStatus(`Added ${state.reviewItems.length} images to gallery!`, 'success');
+            showStatus(`Added ${count} images to gallery!`, 'success');
         }
 
         async function approveSelectedReview() {
@@ -10733,7 +10734,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function compareReviewItem(id) {
             const item = state.reviewItems.find(i => i.id === id);
             if (item && item.originalImage) {
-                openCompare(item.originalImage, item.src);
+                // Direct compare using review item images (not the editor's openCompare)
+                $('compareBefore').src = item.originalImage;
+                $('compareAfter').src = item.src;
+                $('compareModal').classList.add('active');
+                initComparisonSlider();
             }
         }
 
@@ -10937,7 +10942,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 prompt: promptInput.value,
                 date: new Date().toISOString(),
                 favorite: false,
-                label: fileLabel
+                fileLabel: fileLabel,
+                batchLabel: fileLabel
             };
 
             if (currentUser) {
