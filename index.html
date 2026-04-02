@@ -4112,6 +4112,15 @@
             aspect-ratio: 1;
             object-fit: cover;
             cursor: pointer;
+            min-height: 100px;
+            background: var(--bg-tertiary);
+        }
+        .review-item-image.broken {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: var(--text-tertiary);
         }
 
         .review-item-overlay {
@@ -4493,11 +4502,21 @@
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
+            align-items: center;
         }
         .json-preview-item-meta span {
             background: var(--bg-secondary);
             padding: 2px 6px;
             border-radius: 4px;
+        }
+        .json-preview-item-meta select {
+            padding: 2px 4px;
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
         }
         .json-preview-item.done {
             opacity: 0.5;
@@ -10023,6 +10042,19 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         });
 
+        const ASPECT_OPTIONS = ['1:1','16:9','9:16','4:3','3:4','4:5','3:2','2:3','8:1','1:8','4:1','1:4'];
+        const RES_OPTIONS = ['1K','2K','4K'];
+        const GEN_OPTIONS = [1,2,3,4];
+
+        function makeSelect(options, selected, onChange) {
+            return `<select onchange="${onChange}">${options.map(o => `<option value="${o}" ${String(o) === String(selected) ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+        }
+
+        function updateJsonJobField(index, field, value) {
+            if (field === 'generations') value = parseInt(value);
+            pendingJsonJobs[index][field] = value;
+        }
+
         function renderJsonPreview() {
             const activeJobs = pendingJsonJobs.filter(j => !j._removed);
             $('jsonPreviewCount').textContent = `${activeJobs.length} job${activeJobs.length > 1 ? 's' : ''} loaded`;
@@ -10030,6 +10062,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 if (job._removed) return '';
                 const status = job._status || 'pending';
                 const canRemove = status === 'pending';
+                const canEdit = status === 'pending';
                 return `
                     <div class="json-preview-item ${status}">
                         <div class="json-preview-item-title" style="display: flex; justify-content: space-between; align-items: center;">
@@ -10038,9 +10071,15 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         </div>
                         <div class="json-preview-item-meta">
                             ${job.productProfile ? `<span>${escapeHtml(job.productProfile)}</span>` : ''}
-                            <span>${job.aspectRatio || '1:1'}</span>
-                            <span>${job.resolution || '1K'}</span>
-                            <span>${job.generations || 1}x</span>
+                            ${canEdit
+                                ? makeSelect(ASPECT_OPTIONS, job.aspectRatio || '1:1', `updateJsonJobField(${i},'aspectRatio',this.value)`)
+                                : `<span>${job.aspectRatio || '1:1'}</span>`}
+                            ${canEdit
+                                ? makeSelect(RES_OPTIONS, job.resolution || '1K', `updateJsonJobField(${i},'resolution',this.value)`)
+                                : `<span>${job.resolution || '1K'}</span>`}
+                            ${canEdit
+                                ? makeSelect(GEN_OPTIONS, job.generations || 1, `updateJsonJobField(${i},'generations',this.value)`)
+                                : `<span>${job.generations || 1}x</span>`}
                             ${job.fileLabel ? `<span>${escapeHtml(job.fileLabel)}</span>` : ''}
                             <span style="margin-left: auto; font-style: italic;">${status === 'done' ? 'submitted' : status === 'active' ? 'submitting...' : status === 'failed' ? 'failed' : 'pending'}</span>
                         </div>
@@ -10287,6 +10326,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         async function hydrateReviewItems() {
             let changed = false;
             for (const item of state.reviewItems) {
+                // Restore idb: references from IndexedDB
                 if (item.src?.startsWith('idb:')) {
                     const imgData = await ReviewImageDB.get(item.id);
                     if (imgData) {
@@ -10301,15 +10341,31 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         changed = true;
                     }
                 }
+                // Fix legacy items with truncated/corrupted base64 (from old localStorage overflow)
+                if (item.src && !item.src.startsWith('idb:') && !item.src.startsWith('data:image') && !item.src.startsWith('http')) {
+                    // Try IndexedDB as fallback
+                    const imgData = await ReviewImageDB.get(item.id);
+                    if (imgData) {
+                        item.src = imgData;
+                        changed = true;
+                    } else {
+                        // Mark as broken — will be caught by onerror in the UI
+                        item.src = '';
+                        changed = true;
+                    }
+                }
             }
-            // Remove items whose images couldn't be restored (data lost)
+            // Remove items with idb: references that couldn't be restored
             const before = state.reviewItems.length;
             state.reviewItems = state.reviewItems.filter(item => !item.src?.startsWith('idb:'));
             if (state.reviewItems.length < before) {
                 console.warn(`Removed ${before - state.reviewItems.length} review items with missing image data`);
                 changed = true;
             }
-            if (changed) updateReviewUI();
+            if (changed) {
+                saveReviewItems();
+                updateReviewUI();
+            }
         }
 
         // Run hydration on load
@@ -10396,6 +10452,32 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             renderBatchJobs();
         }
 
+        function handleReviewImageError(imgEl, itemId) {
+            // Image failed to load — show fallback
+            imgEl.style.display = 'none';
+            const fallback = document.createElement('div');
+            fallback.className = 'review-item-image broken';
+            fallback.title = 'Image failed to load — click to retry';
+            fallback.textContent = '⚠️';
+            fallback.onclick = () => retryReviewImage(itemId);
+            imgEl.parentElement.insertBefore(fallback, imgEl.nextSibling);
+        }
+
+        async function retryReviewImage(itemId) {
+            // Try to restore from IndexedDB
+            const imgData = await ReviewImageDB.get(itemId);
+            if (imgData) {
+                const item = state.reviewItems.find(i => i.id === itemId);
+                if (item) {
+                    item.src = imgData;
+                    renderReviewGrid();
+                    showStatus('Image restored!', 'success');
+                    return;
+                }
+            }
+            showStatus('Could not restore image — data not found', 'error');
+        }
+
         function renderReviewGrid() {
             reviewGrid.innerHTML = state.reviewItems.map(item => {
                 const date = new Date(item.generatedAt);
@@ -10404,7 +10486,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 return `
                     <div class="review-item ${item.selected ? 'selected' : ''}" data-id="${item.id}">
                         <div class="review-item-checkbox" onclick="toggleReviewItemSelection('${item.id}')">${item.selected ? '✓' : ''}</div>
-                        <img class="review-item-image" src="${item.src}" alt="Review item" onclick="openReviewLightbox('${item.id}')">
+                        <img class="review-item-image" src="${item.src}" alt="Review item" onclick="openReviewLightbox('${item.id}')" onerror="handleReviewImageError(this, '${item.id}')">
                         <div class="review-item-overlay">
                             <div class="review-item-prompt">${item.prompt || 'No prompt'}</div>
                             <div class="review-item-date">${dateStr}</div>
