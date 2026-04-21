@@ -5475,19 +5475,31 @@
                     <div class="config-field">
                         <label>Image Generation Model</label>
                         <select id="apiEndpoint">
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent">Gemini 3 Pro Image Preview</option>
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high">Gemini 3.1 Flash (Thinking - High)</option>
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text">Gemini 3.1 Flash (Thinking - High, Images + Text)</option>
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text" data-grounding="web">Gemini 3.1 Flash (Thinking - High, Images + Text, Google Search)</option>
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text" data-grounding="web-image">Gemini 3.1 Flash (Thinking - High, Images + Text, Google + Image Search)</option>
-                            <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="none">Gemini 3.1 Flash (Default Thinking)</option>
+                            <optgroup label="Google Gemini">
+                                <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent">Gemini 3 Pro Image Preview</option>
+                                <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high">Gemini 3.1 Flash (Thinking - High)</option>
+                                <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text">Gemini 3.1 Flash (Thinking - High, Images + Text)</option>
+                                <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text" data-grounding="web">Gemini 3.1 Flash (Thinking - High, Images + Text, Google Search)</option>
+                                <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="high" data-output="image-text" data-grounding="web-image">Gemini 3.1 Flash (Thinking - High, Images + Text, Google + Image Search)</option>
+                                <option value="https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent" data-thinking="none">Gemini 3.1 Flash (Default Thinking)</option>
+                            </optgroup>
+                            <optgroup label="OpenAI">
+                                <option value="gpt-image-2" data-provider="openai">GPT Image 2</option>
+                            </optgroup>
                         </select>
                     </div>
-                    <div class="config-field">
-                        <label>API Key</label>
-                        <input type="password" id="apiKey" placeholder="Enter your API key">
+                    <div class="config-field" id="geminiKeyField">
+                        <label>Gemini API Key</label>
+                        <input type="password" id="apiKey" placeholder="Enter your Gemini API key">
                         <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="api-key-help">
                             Get a free API key from Google AI Studio →
+                        </a>
+                    </div>
+                    <div class="config-field" id="openaiKeyField" style="display: none;">
+                        <label>OpenAI API Key</label>
+                        <input type="password" id="openaiApiKey" placeholder="Enter your OpenAI API key">
+                        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="api-key-help">
+                            Get an API key from OpenAI Platform →
                         </a>
                     </div>
                 </div>
@@ -5700,6 +5712,15 @@
                         <button class="option-btn active" data-value="1K">1K</button>
                         <button class="option-btn" data-value="2K">2K</button>
                         <button class="option-btn" data-value="4K">4K</button>
+                    </div>
+                </div>
+                <div class="option-group" id="qualityGroup" style="display: none;">
+                    <label>Quality <span style="font-size: 0.7rem; opacity: 0.6;">(OpenAI)</span></label>
+                    <div class="option-buttons" id="qualityButtons">
+                        <button class="option-btn" data-value="low">Low</button>
+                        <button class="option-btn" data-value="medium">Med</button>
+                        <button class="option-btn active" data-value="high">High</button>
+                        <button class="option-btn" data-value="auto">Auto</button>
                     </div>
                 </div>
                 <div class="option-group">
@@ -6503,6 +6524,7 @@
             selectedAspectRatio: '1:1',
             selectedResolution: '1K',
             selectedGenerationCount: 1,
+            selectedQuality: 'high',
             mode: 'single',
             exportFormat: 'png',
             exportQuality: 90,
@@ -6575,8 +6597,51 @@
                     promptgenModel: $('promptgenModelSelect').value,
                     breakdownModel: $('breakdownModelSelect').value
                 });
+                if (id === 'apiEndpoint') updateProviderUI();
             });
         });
+
+        function getSelectedProvider() {
+            const selected = apiEndpointInput.options[apiEndpointInput.selectedIndex];
+            return selected?.dataset?.provider || 'gemini';
+        }
+
+        function isOpenAIModel() {
+            return getSelectedProvider() === 'openai';
+        }
+
+        function updateProviderUI() {
+            const isOAI = isOpenAIModel();
+            $('geminiKeyField').style.display = isOAI ? 'none' : '';
+            $('openaiKeyField').style.display = isOAI ? '' : 'none';
+            $('qualityGroup').style.display = isOAI ? '' : 'none';
+
+            // Update mode hint for OpenAI
+            if (isOAI && state.mode === 'batch') {
+                $('modeHint').innerHTML = 'OpenAI: Jobs processed sequentially (no async batch discount)';
+            } else if (!isOAI && state.mode === 'batch') {
+                $('modeHint').innerHTML = 'Batch API: 50% cheaper, async processing (up to 24h)';
+            }
+
+            // Disable unsupported aspect ratios for OpenAI (max 3:1)
+            $('aspectRatioButtons').querySelectorAll('.aspect-btn').forEach(btn => {
+                const [w, h] = btn.dataset.value.split(':').map(Number);
+                const ratio = w / h;
+                const unsupported = isOAI && (ratio > 3 || ratio < 1/3);
+                btn.classList.toggle('disabled-ratio', unsupported);
+                btn.style.opacity = unsupported ? '0.3' : '';
+                btn.style.pointerEvents = unsupported ? 'none' : '';
+                if (unsupported && btn.classList.contains('active')) {
+                    btn.classList.remove('active');
+                    const fallback = $('aspectRatioButtons').querySelector('[data-value="1:1"]');
+                    fallback.classList.add('active');
+                    state.selectedAspectRatio = '1:1';
+                }
+            });
+        }
+
+        // Initialize provider UI on load
+        setTimeout(updateProviderUI, 0);
 
         // Auto-resize prompt textarea to fit content
         function autoResizePromptInput() {
@@ -6761,18 +6826,25 @@
             }
         });
 
-        // Load saved config (API key only - endpoint is now a preset dropdown)
+        // Load saved config (API keys - endpoint is now a preset dropdown)
         apiKeyInput.value = Storage.get('apiKey', '');
+        $('openaiApiKey').value = Storage.get('openaiApiKey', '');
 
         // Load system instructions
         const systemInstructionsInput = $('systemInstructions');
         systemInstructionsInput.value = Storage.get('systemInstructions', '');
 
-        // Save API key on change (local + cloud if signed in)
+        // Save API keys on change (local + cloud if signed in)
         apiKeyInput.addEventListener('change', async () => {
             Storage.set('apiKey', apiKeyInput.value);
             if (currentUser) {
                 await saveSettingsToCloud({ apiKey: apiKeyInput.value });
+            }
+        });
+        $('openaiApiKey').addEventListener('change', async () => {
+            Storage.set('openaiApiKey', $('openaiApiKey').value);
+            if (currentUser) {
+                await saveSettingsToCloud({ openaiApiKey: $('openaiApiKey').value });
             }
         });
 
@@ -7257,6 +7329,7 @@
                 }));
                 await saveSettingsToCloud({
                     apiKey: apiKeyInput.value,
+                    openaiApiKey: $('openaiApiKey').value,
                     systemInstructions: $('systemInstructions').value,
                     activeProductId: state.activeProductId,
                     prompts: state.prompts,
@@ -7284,8 +7357,11 @@
                 if (settings) {
                     if (settings.apiKey) {
                         apiKeyInput.value = settings.apiKey;
-                        // Only save API key to localStorage (useful for form restoration)
                         Storage.set('apiKey', settings.apiKey);
+                    }
+                    if (settings.openaiApiKey) {
+                        $('openaiApiKey').value = settings.openaiApiKey;
+                        Storage.set('openaiApiKey', settings.openaiApiKey);
                     }
                     if (settings.systemInstructions) {
                         $('systemInstructions').value = settings.systemInstructions;
@@ -7592,6 +7668,7 @@
         setupOptionButtons('aspectRatioButtons', 'selectedAspectRatio');
         setupOptionButtons('resolutionButtons', 'selectedResolution');
         setupOptionButtons('generationCountButtons', 'selectedGenerationCount', v => parseInt(v));
+        setupOptionButtons('qualityButtons', 'selectedQuality');
         setupOptionButtons('modeButtons', 'mode');
 
         function toggleBatchMode() {
@@ -7601,7 +7678,12 @@
             $('batchLabelGroup').style.display = isBatch ? 'block' : 'none';
             submitBtn.querySelector('span').textContent = isBatch ? 'Submit Batch' : 'Generate Edit';
 
-            // Batch mode uses the Batch API, not the queue panel
+            if (isBatch && isOpenAIModel()) {
+                $('modeHint').innerHTML = 'OpenAI: Jobs processed sequentially (no async batch discount)';
+            } else if (isBatch) {
+                $('modeHint').innerHTML = 'Batch API: 50% cheaper, async processing (up to 24h)';
+            }
+
             hideQueuePanel();
         }
 
@@ -9356,6 +9438,124 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             return null;
         }
 
+        // ========== OPENAI HELPERS ==========
+        function getOpenAISize(aspectRatio, resolution) {
+            const [aw, ah] = aspectRatio.split(':').map(Number);
+            const ratio = aw / ah;
+            if (ratio > 3 || ratio < 1/3) return null;
+
+            const maxDimByRes = { '1K': 1024, '2K': 2048, '4K': 3840 };
+            const maxDim = maxDimByRes[resolution] || 1024;
+            const minPixels = 655360;
+
+            let width, height;
+            if (aw >= ah) {
+                width = Math.round(maxDim / 16) * 16;
+                height = Math.round((maxDim * ah / aw) / 16) * 16;
+            } else {
+                height = Math.round(maxDim / 16) * 16;
+                width = Math.round((maxDim * aw / ah) / 16) * 16;
+            }
+
+            // Scale up if below OpenAI minimum pixel count
+            while (width * height < minPixels) {
+                const scale = Math.sqrt(minPixels / (width * height)) * 1.05;
+                width = Math.round(width * scale / 16) * 16;
+                height = Math.round(height * scale / 16) * 16;
+            }
+
+            width = Math.min(width, 3840);
+            height = Math.min(height, 3840);
+            return `${width}x${height}`;
+        }
+
+        function base64ToBlob(base64, mimeType) {
+            const bytes = atob(base64);
+            const arr = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+            return new Blob([arr], { type: mimeType || 'image/png' });
+        }
+
+        async function openAIGenerate(prompt, images, options = {}) {
+            const apiKey = $('openaiApiKey').value.trim();
+            if (!apiKey) throw new Error('Enter your OpenAI API key');
+
+            const modelId = apiEndpointInput.value;
+            const size = getOpenAISize(
+                options.aspectRatio || state.selectedAspectRatio,
+                options.resolution || state.selectedResolution
+            );
+            if (!size) throw new Error('This aspect ratio is not supported by OpenAI (max 3:1)');
+
+            const quality = state.selectedQuality || 'high';
+            const n = options.n || 1;
+            const isEdit = images && images.length > 0;
+            let response;
+
+            if (isEdit) {
+                const formData = new FormData();
+                formData.append('model', modelId);
+                formData.append('prompt', prompt);
+                formData.append('n', String(n));
+                formData.append('size', size);
+                formData.append('quality', quality);
+
+                images.forEach((img, i) => {
+                    const blob = base64ToBlob(img.base64, img.mimeType);
+                    const ext = (img.mimeType || 'image/png').split('/')[1] || 'png';
+                    formData.append('image[]', blob, `image-${i}.${ext}`);
+                });
+
+                response = await fetch('https://api.openai.com/v1/images/edits', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    body: formData
+                });
+            } else {
+                response = await fetch('https://api.openai.com/v1/images/generations', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelId,
+                        prompt: prompt,
+                        n: n,
+                        size: size,
+                        quality: quality,
+                        output_format: 'png'
+                    })
+                });
+            }
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => null);
+                throw new Error(err?.error?.message || `OpenAI API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const results = [];
+            for (const item of (data.data || [])) {
+                if (item.b64_json) {
+                    results.push({ src: `data:image/png;base64,${item.b64_json}`, mimeType: 'image/png' });
+                }
+            }
+
+            const cost = data.usage ? estimateOpenAICost(data.usage) : null;
+            return { images: results, cost, usage: data.usage };
+        }
+
+        function estimateOpenAICost(usage) {
+            if (!usage) return null;
+            const imageIn = (usage.input_tokens_details?.image_tokens || 0) * 8.0 / 1e6;
+            const textIn = (usage.input_tokens_details?.text_tokens || 0) * 5.0 / 1e6;
+            const imageOut = (usage.output_tokens_details?.image_tokens || 0) * 30.0 / 1e6;
+            const textOut = (usage.output_tokens_details?.text_tokens || 0) * 10.0 / 1e6;
+            const total = imageIn + textIn + imageOut + textOut;
+            return { total, imageIn, textIn, imageOut, textOut };
+        }
+
         function estimateBatchCost(job, successCount) {
             const isFlash = (job.model || '').includes('flash');
             const res = job.resolution || '1K';
@@ -9570,6 +9770,48 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 } else {
                     showStatus(`Batch submission failed: ${error.message}`, 'error');
                 }
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function submitOpenAIBatch(imagesToProcess, prompt) {
+            const apiKey = $('openaiApiKey').value.trim();
+            if (!apiKey) { showStatus('Enter your OpenAI API key', 'error'); return; }
+
+            submitBtn.disabled = true;
+            const fullPrompt = buildFullPrompt(prompt, 'openai');
+            const allInputImages = [...imagesToProcess, ...state.referenceImages.filter(r => r.base64)];
+            const userLabel = $('batchLabelInput')?.value?.trim();
+            const fileLabel = $('fileLabelInput')?.value?.trim() || null;
+
+            showStatus('Processing OpenAI batch...', 'loading');
+            const allResults = [];
+            let totalCost = 0;
+
+            try {
+                for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                    if (state.selectedGenerationCount > 1) {
+                        showStatus(`OpenAI batch: generating ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
+                    }
+                    const result = await openAIGenerate(fullPrompt, allInputImages);
+                    allResults.push(...result.images);
+                    if (result.cost) totalCost += result.cost.total;
+                }
+
+                const label = userLabel || null;
+                for (const img of allResults) {
+                    await addToReview(img.src, prompt, null, label, fileLabel);
+                }
+
+                const costStr = totalCost > 0 ? ` — est. cost: $${totalCost.toFixed(4)}` : '';
+                showStatus(`OpenAI batch complete! ${allResults.length} image${allResults.length !== 1 ? 's' : ''} added to review${costStr}`, 'success');
+                pulseReviewBadge();
+                updateReviewUI();
+                if ($('batchLabelInput')) $('batchLabelInput').value = '';
+            } catch (error) {
+                console.error('OpenAI batch error:', error);
+                showStatus(`OpenAI batch failed: ${error.message}`, 'error');
             } finally {
                 submitBtn.disabled = false;
             }
@@ -10178,6 +10420,21 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         async function executeSingleJob(prompt, imagesToProcess) {
+            const provider = getSelectedProvider();
+
+            if (provider === 'openai') {
+                const fullPrompt = buildFullPrompt(prompt, 'openai');
+                const allInputImages = [...imagesToProcess, ...state.referenceImages.filter(r => r.base64)];
+                const results = [];
+
+                for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                    const result = await openAIGenerate(fullPrompt, allInputImages);
+                    results.push(...result.images.map(img => img.src));
+                }
+                return results;
+            }
+
+            // Gemini path
             const apiEndpoint = apiEndpointInput.value.trim();
             const apiKey = apiKeyInput.value.trim();
 
@@ -10235,9 +10492,10 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         async function executeJsonImport() {
-            const apiKey = apiKeyInput.value.trim();
+            const provider = getSelectedProvider();
+            const apiKey = provider === 'openai' ? $('openaiApiKey').value.trim() : apiKeyInput.value.trim();
             if (!apiKey) {
-                showStatus('Enter API key first', 'error');
+                showStatus(`Enter your ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API key first`, 'error');
                 return;
             }
 
@@ -10289,7 +10547,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         state.mode = 'batch';
                         $('modeButtons')?.querySelectorAll('.option-btn').forEach(b => b.classList.toggle('active', b.dataset.value === 'batch'));
                         toggleBatchMode();
-                        await submitBatchJob(imagesToProcess, job.prompt);
+                        if (isOpenAIModel()) {
+                            await submitOpenAIBatch(imagesToProcess, job.prompt);
+                        } else {
+                            await submitBatchJob(imagesToProcess, job.prompt);
+                        }
                     } else {
                         // Single mode — generate and send results to review
                         state.mode = 'single';
@@ -11933,40 +12195,70 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         });
 
         // ========== MAIN GENERATION ==========
+        function buildFullPrompt(prompt, provider) {
+            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)', '8:1': 'ultra-wide (8:1)', '1:8': 'ultra-tall (1:8)', '4:1': 'panoramic (4:1)', '1:4': 'tall banner (1:4)' };
+            const resMap = { '1K': '1024px', '2K': '2048px', '4K': '4096px' };
+
+            const systemInstructions = systemInstructionsInput.value.trim();
+            let fullPrompt = '';
+            if (systemInstructions) {
+                fullPrompt = `[System Instructions: ${systemInstructions}] `;
+            }
+
+            const hasMentions = prompt.includes('@main-image') || prompt.includes('@reference');
+            if (hasMentions) {
+                let mentionContext = '[Image References: ';
+                const contextParts = [];
+                if (prompt.includes('@main-image')) contextParts.push('@main-image refers to the first/main uploaded image');
+                if (prompt.includes('@reference')) contextParts.push('@reference refers to the style reference image (second image)');
+                mentionContext += contextParts.join('; ') + '] ';
+                fullPrompt += mentionContext;
+            }
+
+            fullPrompt += prompt;
+            if (state.referenceImages.length > 0 && !hasMentions) fullPrompt += `. Match the style of the ${state.referenceImages.length > 1 ? 'reference images' : 'reference image'} provided.`;
+
+            // For Gemini, append aspect/resolution as text. For OpenAI, these are handled via the size parameter.
+            if (provider !== 'openai') {
+                fullPrompt += `. Output in ${aspectMap[state.selectedAspectRatio]} at ${resMap[state.selectedResolution]}.`;
+            }
+            return fullPrompt;
+        }
+
         submitBtn.addEventListener('click', async () => {
             const apiEndpoint = apiEndpointInput.value.trim();
-            const apiKey = apiKeyInput.value.trim();
+            const provider = getSelectedProvider();
+            const apiKey = provider === 'openai' ? $('openaiApiKey').value.trim() : apiKeyInput.value.trim();
             const prompt = promptInput.value.trim();
 
-            if (!apiEndpoint) { showStatus('Enter API endpoint', 'error'); return; }
-            if (!apiKey) { showStatus('Enter API key', 'error'); return; }
+            if (!apiEndpoint) { showStatus('Select a model', 'error'); return; }
+            if (!apiKey) { showStatus(`Enter your ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API key`, 'error'); return; }
             if (!prompt) { showStatus('Enter a prompt', 'error'); return; }
 
             const imagesToProcess = state.currentImageBase64
                 ? [{ base64: state.currentImageBase64, mimeType: state.currentImageMimeType }, ...state.additionalMainImages.map(img => ({ base64: img.base64, mimeType: img.mimeType }))]
-                    .filter(img => img.base64) // Filter out images with null base64 (failed to load)
+                    .filter(img => img.base64)
                 : [];
 
-            console.log('Generate: Mode:', state.mode);
-            console.log('Generate: currentImageBase64 exists?', !!state.currentImageBase64, 'length:', state.currentImageBase64?.length);
+            console.log('Generate: Mode:', state.mode, 'Provider:', provider);
             console.log('Generate: imagesToProcess count:', imagesToProcess.length);
 
-            // Allow text-to-image generation without an input image
             const isTextToImage = imagesToProcess.length === 0;
-
             savePrompt();
 
-            // BATCH MODE: Submit to Gemini Batch API (50% cheaper, async processing)
+            // BATCH MODE
             if (state.mode === 'batch') {
-                await submitBatchJob(imagesToProcess, prompt);
+                if (provider === 'openai') {
+                    await submitOpenAIBatch(imagesToProcess, prompt);
+                } else {
+                    await submitBatchJob(imagesToProcess, prompt);
+                }
                 return;
             }
 
-            // SINGLE MODE: Process immediately (existing behavior)
+            // SINGLE MODE
             submitBtn.disabled = true;
             showStatus('Processing...', 'loading');
-
-            // Show loading indicator in result area
             resultArea.innerHTML = `
                 <div class="result-loading">
                     <div class="result-loading-spinner"></div>
@@ -11975,122 +12267,100 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 </div>
             `;
 
-            const aspectMap = { '1:1': 'square (1:1)', '16:9': 'widescreen (16:9)', '9:16': 'portrait (9:16)', '4:3': 'landscape (4:3)', '3:4': 'portrait (3:4)', '4:5': 'portrait (4:5)', '3:2': 'landscape (3:2)', '2:3': 'portrait (2:3)', '8:1': 'ultra-wide (8:1)', '1:8': 'ultra-tall (1:8)', '4:1': 'panoramic (4:1)', '1:4': 'tall banner (1:4)' };
-            const resMap = { '1K': '1024px', '2K': '2048px', '4K': '4096px' };
-
-            // Build full prompt with system instructions
-            const systemInstructions = systemInstructionsInput.value.trim();
-            let fullPrompt = '';
-            if (systemInstructions) {
-                fullPrompt = `[System Instructions: ${systemInstructions}] `;
-            }
-
-            // Add @ mention context only if mentions are used in the prompt
-            const hasMentions = prompt.includes('@main-image') || prompt.includes('@reference');
-            if (hasMentions) {
-                let mentionContext = '[Image References: ';
-                const contextParts = [];
-                if (prompt.includes('@main-image')) {
-                    contextParts.push('@main-image refers to the first/main uploaded image');
-                }
-                if (prompt.includes('@reference')) {
-                    contextParts.push('@reference refers to the style reference image (second image)');
-                }
-                mentionContext += contextParts.join('; ') + '] ';
-                fullPrompt += mentionContext;
-            }
-
-            fullPrompt += prompt;
-            if (state.referenceImages.length > 0 && !hasMentions) fullPrompt += `. Match the style of the ${state.referenceImages.length > 1 ? 'reference images' : 'reference image'} provided.`;
-            fullPrompt += `. Output in ${aspectMap[state.selectedAspectRatio]} at ${resMap[state.selectedResolution]}.`;
-
             const allImages = [];
             let totalCost = 0;
 
             try {
-                // TEXT-TO-IMAGE MODE: Generate without input image
-                if (isTextToImage) {
+                if (provider === 'openai') {
+                    // ---- OPENAI SINGLE MODE ----
+                    const fullPrompt = buildFullPrompt(prompt, 'openai');
+                    const allInputImages = [...imagesToProcess, ...state.referenceImages.filter(r => r.base64)];
+
                     for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
                         if (state.selectedGenerationCount > 1) {
                             showStatus(`Generating image ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
                         }
+                        const result = await openAIGenerate(fullPrompt, allInputImages);
+                        allImages.push(...result.images);
+                        if (result.cost) totalCost += result.cost.total;
+                    }
+                } else {
+                    // ---- GEMINI SINGLE MODE ----
+                    const fullPrompt = buildFullPrompt(prompt, 'gemini');
 
-                        const parts = [];
-                        state.referenceImages.forEach(ref => {
-                            parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
-                        });
-                        parts.push({ text: fullPrompt });
+                    if (isTextToImage) {
+                        for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                            if (state.selectedGenerationCount > 1) {
+                                showStatus(`Generating image ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
+                            }
 
-                        const requestBody = {
-                            contents: [{ parts }],
-                            generationConfig: getGenerationConfig()
-                        };
-                        const tools = getTools();
-                        if (tools) requestBody.tools = tools;
+                            const parts = [];
+                            state.referenceImages.forEach(ref => {
+                                parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                            });
+                            parts.push({ text: fullPrompt });
 
-                        const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(requestBody)
-                        });
+                            const requestBody = { contents: [{ parts }], generationConfig: getGenerationConfig() };
+                            const tools = getTools();
+                            if (tools) requestBody.tools = tools;
 
-                        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                            const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(requestBody)
+                            });
+                            if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-                        const data = await response.json();
-                        const cost = estimateCost(data.usageMetadata);
-                        if (cost) totalCost += cost.total;
-                        if (data.candidates) {
-                            for (const candidate of data.candidates) {
-                                for (const part of candidate.content?.parts || []) {
-                                    if (part.inlineData) {
-                                        const mimeType = part.inlineData.mimeType || 'image/png';
-                                        allImages.push({ src: `data:${mimeType};base64,${part.inlineData.data}`, mimeType });
+                            const data = await response.json();
+                            const cost = estimateCost(data.usageMetadata);
+                            if (cost) totalCost += cost.total;
+                            if (data.candidates) {
+                                for (const candidate of data.candidates) {
+                                    for (const part of candidate.content?.parts || []) {
+                                        if (part.inlineData) {
+                                            const mimeType = part.inlineData.mimeType || 'image/png';
+                                            allImages.push({ src: `data:${mimeType};base64,${part.inlineData.data}`, mimeType });
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                } else {
-                    // IMAGE-TO-IMAGE MODE: Edit existing images
-                    for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
-                        if (state.selectedGenerationCount > 1) {
-                            showStatus(`Generation ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
-                        }
+                    } else {
+                        for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
+                            if (state.selectedGenerationCount > 1) {
+                                showStatus(`Generation ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
+                            }
 
-                        // Send ALL main images together in a single request
-                        const parts = [];
-                        imagesToProcess.forEach(imgData => {
-                            parts.push({ inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } });
-                        });
-                        state.referenceImages.forEach(ref => {
-                            parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
-                        });
-                        parts.push({ text: fullPrompt });
+                            const parts = [];
+                            imagesToProcess.forEach(imgData => {
+                                parts.push({ inlineData: { mimeType: imgData.mimeType, data: imgData.base64 } });
+                            });
+                            state.referenceImages.forEach(ref => {
+                                parts.push({ inlineData: { mimeType: ref.mimeType || 'image/jpeg', data: ref.base64 } });
+                            });
+                            parts.push({ text: fullPrompt });
 
-                        const editBody = {
-                            contents: [{ parts }],
-                            generationConfig: getGenerationConfig()
-                        };
-                        const editTools = getTools();
-                        if (editTools) editBody.tools = editTools;
+                            const editBody = { contents: [{ parts }], generationConfig: getGenerationConfig() };
+                            const editTools = getTools();
+                            if (editTools) editBody.tools = editTools;
 
-                        const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(editBody)
-                        });
+                            const response = await fetch(`${apiEndpoint}?key=${encodeURIComponent(apiKey)}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(editBody)
+                            });
+                            if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-                        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-
-                        const data = await response.json();
-                        const cost = estimateCost(data.usageMetadata);
-                        if (cost) totalCost += cost.total;
-                        if (data.candidates) {
-                            for (const candidate of data.candidates) {
-                                for (const part of candidate.content?.parts || []) {
-                                    if (part.inlineData) {
-                                        const mimeType = part.inlineData.mimeType || 'image/png';
-                                        allImages.push({ src: `data:${mimeType};base64,${part.inlineData.data}`, mimeType });
+                            const data = await response.json();
+                            const cost = estimateCost(data.usageMetadata);
+                            if (cost) totalCost += cost.total;
+                            if (data.candidates) {
+                                for (const candidate of data.candidates) {
+                                    for (const part of candidate.content?.parts || []) {
+                                        if (part.inlineData) {
+                                            const mimeType = part.inlineData.mimeType || 'image/png';
+                                            allImages.push({ src: `data:${mimeType};base64,${part.inlineData.data}`, mimeType });
+                                        }
                                     }
                                 }
                             }
@@ -12760,46 +13030,55 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         }
 
         async function saveCredentials() {
-            const key = apiKeyInput.value.trim();
+            const geminiKey = apiKeyInput.value.trim();
+            const openaiKey = $('openaiApiKey').value.trim();
 
-            if (!key) {
+            if (!geminiKey && !openaiKey) {
                 showCredentialsStatus('Please enter an API key', true);
                 return;
             }
 
-            Storage.set('apiKey', key);
+            if (geminiKey) Storage.set('apiKey', geminiKey);
+            if (openaiKey) Storage.set('openaiApiKey', openaiKey);
             if (currentUser) {
-                await saveSettingsToCloud({ apiKey: key });
-                showCredentialsStatus('API key saved to cloud!');
+                const updates = {};
+                if (geminiKey) updates.apiKey = geminiKey;
+                if (openaiKey) updates.openaiApiKey = openaiKey;
+                await saveSettingsToCloud(updates);
+                showCredentialsStatus('API key(s) saved to cloud!');
             } else {
-                showCredentialsStatus('API key saved locally!');
+                showCredentialsStatus('API key(s) saved locally!');
             }
         }
 
         function loadCredentials() {
-            const key = Storage.get('apiKey', '');
+            const geminiKey = Storage.get('apiKey', '');
+            const openaiKey = Storage.get('openaiApiKey', '');
 
-            if (!key) {
-                showCredentialsStatus('No saved API key found', true);
+            if (!geminiKey && !openaiKey) {
+                showCredentialsStatus('No saved API keys found', true);
                 return;
             }
 
-            apiKeyInput.value = key;
-            showCredentialsStatus('API key loaded!');
+            if (geminiKey) apiKeyInput.value = geminiKey;
+            if (openaiKey) $('openaiApiKey').value = openaiKey;
+            showCredentialsStatus('API key(s) loaded!');
         }
 
         function clearFields() {
             apiKeyInput.value = '';
-            showCredentialsStatus('Field cleared');
+            $('openaiApiKey').value = '';
+            showCredentialsStatus('Fields cleared');
         }
 
         async function deleteSavedCredentials() {
             Storage.set('apiKey', '');
+            Storage.set('openaiApiKey', '');
             if (currentUser) {
-                await saveSettingsToCloud({ apiKey: '' });
-                showCredentialsStatus('API key deleted from cloud');
+                await saveSettingsToCloud({ apiKey: '', openaiApiKey: '' });
+                showCredentialsStatus('API keys deleted from cloud');
             } else {
-                showCredentialsStatus('Saved API key deleted');
+                showCredentialsStatus('Saved API keys deleted');
             }
         }
 
