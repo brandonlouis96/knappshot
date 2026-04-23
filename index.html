@@ -5762,7 +5762,7 @@
                     <span class="json-import-toggle" id="jsonImportToggle">+</span>
                 </div>
                 <div class="json-import-body" id="jsonImportBody" style="display: none;">
-                    <p class="json-import-hint">Upload a JSON file to auto-configure and submit jobs. Uses the model selected above. Each job specifies its own prompt, product profile, aspect ratio, and labels.</p>
+                    <p class="json-import-hint">Upload a JSON file to auto-configure and submit jobs. Uses the model selected above. Each job specifies its own prompt, aspect ratio, and labels. Assign product profiles per-job after importing.</p>
                     <div class="json-import-actions">
                         <input type="file" id="jsonFileInput" class="hidden-input" accept=".json">
                         <button class="action-btn save" onclick="$('jsonFileInput').click()">Upload JSON</button>
@@ -5777,9 +5777,9 @@
                         <div class="json-preview-list" id="jsonPreviewList"></div>
                         <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Product Profile:</label>
-                                <select id="jsonProductSelect" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem;">
-                                    <option value="">-- Use JSON per-job --</option>
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Apply Profile to All:</label>
+                                <select id="jsonProductSelect" onchange="applyProductToAllJsonJobs(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem;">
+                                    <option value="">-- Select to apply --</option>
                                 </select>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
@@ -10159,7 +10159,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             jobs: [
                 {
                     prompt: "Your image generation or editing prompt goes here",
-                    productProfile: "Product Name",
                     aspectRatio: "4:5",
                     resolution: "1K",
                     generations: 1,
@@ -10168,7 +10167,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 },
                 {
                     prompt: "Another prompt for a different shot",
-                    productProfile: "Product Name",
                     aspectRatio: "1:1",
                     resolution: "1K",
                     generations: 1,
@@ -10182,9 +10180,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
   "jobs": [
     {
       "prompt": "(required) The image editing/generation prompt",
-
-      "productProfile": "(optional) Product profile name to load
-          images from. Must match an existing profile name.",
 
       "aspectRatio": "(optional) Options:
           "1:1", "16:9", "9:16", "4:3", "3:4",
@@ -10205,8 +10200,8 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
     }
   ]
 
-  Model and mode (single/batch) are selected in the
-  app UI before submitting.
+  Model, mode (single/batch), and product profiles
+  are selected in the app UI after importing.
 }`;
 
         function toggleJsonImport() {
@@ -10275,7 +10270,11 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     }
                 }
 
-                pendingJsonJobs = data.jobs;
+                pendingJsonJobs = data.jobs.map(job => {
+                    const j = { ...job };
+                    delete j.productProfile;
+                    return j;
+                });
                 renderJsonPreview();
                 $('jsonImportPreview').style.display = 'block';
                 showStatus(`${data.jobs.length} batch job${data.jobs.length > 1 ? 's' : ''} loaded from JSON`, 'success');
@@ -10290,6 +10289,14 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function makeSelect(options, selected, onChange) {
             return `<select onchange="${onChange}">${options.map(o => `<option value="${o}" ${String(o) === String(selected) ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+        }
+
+        function makeProductSelect(selected, jobIndex) {
+            const products = state.products.filter(p => getProductImages(p).length > 0);
+            const opts = ['<option value="">No product</option>'].concat(
+                products.map(p => `<option value="${escapeHtml(p.name)}" ${p.name === selected ? 'selected' : ''}>${escapeHtml(p.name)}</option>`)
+            );
+            return `<select onchange="updateJsonJobField(${jobIndex},'productProfile',this.value)" style="max-width: 140px;">${opts.join('')}</select>`;
         }
 
         function updateJsonJobField(index, field, value) {
@@ -10312,7 +10319,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                             ${canRemove ? `<button onclick="removeJsonJob(${i})" style="background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 1.1rem; padding: 0 4px; line-height: 1;" title="Remove">&times;</button>` : ''}
                         </div>
                         <div class="json-preview-item-meta">
-                            ${job.productProfile ? `<span>${escapeHtml(job.productProfile)}</span>` : ''}
+                            ${canEdit
+                                ? makeProductSelect(job.productProfile || '', i)
+                                : (job.productProfile ? `<span>${escapeHtml(job.productProfile)}</span>` : '')}
                             ${canEdit
                                 ? makeSelect(ASPECT_OPTIONS, job.aspectRatio || '1:1', `updateJsonJobField(${i},'aspectRatio',this.value)`)
                                 : `<span>${job.aspectRatio || '1:1'}</span>`}
@@ -10345,13 +10354,22 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function updateJsonProductSelect() {
             const select = $('jsonProductSelect');
             if (!select) return;
-            const currentVal = select.value;
             const productsWithImages = state.products.filter(p => getProductImages(p).length > 0);
-            select.innerHTML = '<option value="">-- Use JSON per-job --</option>' +
+            select.innerHTML = '<option value="">-- Select to apply --</option>' +
                 productsWithImages.map(p =>
                     `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`
                 ).join('');
-            select.value = currentVal;
+            select.value = '';
+        }
+
+        function applyProductToAllJsonJobs(productName) {
+            for (let i = 0; i < pendingJsonJobs.length; i++) {
+                if (!pendingJsonJobs[i]._removed && (!pendingJsonJobs[i]._status || pendingJsonJobs[i]._status === 'pending')) {
+                    pendingJsonJobs[i].productProfile = productName || '';
+                }
+            }
+            renderJsonPreview();
+            $('jsonProductSelect').value = '';
         }
 
         function setOptionButton(containerId, value, stateKey, parser) {
@@ -10507,7 +10525,6 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             $('jsonImportProgress').style.display = 'flex';
 
             const isBatchMode = jsonImportMode === 'batch';
-            const uiProductOverride = $('jsonProductSelect')?.value || '';
             let completed = 0;
             let lastProductName = null;
             const activeJobs = pendingJsonJobs.filter(j => !j._removed);
@@ -10519,14 +10536,18 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 renderJsonPreview();
 
                 try {
-                    // Use UI product override if set, otherwise use JSON per-job
-                    const productName = uiProductOverride || job.productProfile;
+                    const productName = job.productProfile || '';
 
-                    // Load product images (skip if same product as last job)
                     if (productName && productName !== lastProductName) {
                         await loadProductImagesForJob(productName);
                         lastProductName = productName;
-                    } else if (!productName) {
+                    } else if (!productName && lastProductName) {
+                        state.activeProductId = null;
+                        state.currentImage = null;
+                        state.originalImage = null;
+                        state.currentImageBase64 = null;
+                        state.currentImageMimeType = null;
+                        state.additionalMainImages = [];
                         lastProductName = null;
                     }
 
