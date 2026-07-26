@@ -6616,9 +6616,9 @@
             $('openaiKeyField').style.display = isOAI ? '' : 'none';
             $('qualityGroup').style.display = isOAI ? '' : 'none';
 
-            // Update mode hint for OpenAI
+            // Update mode hint for the selected provider
             if (isOAI && state.mode === 'batch') {
-                $('modeHint').innerHTML = 'OpenAI: Jobs processed sequentially (no async batch discount)';
+                $('modeHint').innerHTML = 'OpenAI Batch API: 50% cheaper, async processing (up to 24h)';
             } else if (!isOAI && state.mode === 'batch') {
                 $('modeHint').innerHTML = 'Batch API: 50% cheaper, async processing (up to 24h)';
             }
@@ -7679,7 +7679,7 @@
             submitBtn.querySelector('span').textContent = isBatch ? 'Submit Batch' : 'Generate Edit';
 
             if (isBatch && isOpenAIModel()) {
-                $('modeHint').innerHTML = 'OpenAI: Jobs processed sequentially (no async batch discount)';
+                $('modeHint').innerHTML = 'OpenAI Batch API: 50% cheaper, async processing (up to 24h)';
             } else if (isBatch) {
                 $('modeHint').innerHTML = 'Batch API: 50% cheaper, async processing (up to 24h)';
             }
@@ -9381,23 +9381,39 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         // ========== BATCH API SYSTEM ==========
 
-        // Google's API returns BATCH_STATE_* but we also use JOB_STATE_* internally
+        // Normalize Gemini's BATCH/JOB states and OpenAI's lowercase Batch states.
         function isBatchActive(status) {
             return status === 'JOB_STATE_PENDING' || status === 'JOB_STATE_RUNNING' ||
                    status === 'BATCH_STATE_PENDING' || status === 'BATCH_STATE_RUNNING' ||
-                   status === 'STATE_PENDING' || status === 'STATE_RUNNING';
+                   status === 'STATE_PENDING' || status === 'STATE_RUNNING' ||
+                   status === 'validating' || status === 'in_progress' ||
+                   status === 'finalizing' || status === 'cancelling';
         }
         function isBatchDone(status) {
             return status === 'JOB_STATE_SUCCEEDED' || status === 'BATCH_STATE_SUCCEEDED' ||
-                   status === 'STATE_SUCCEEDED';
+                   status === 'STATE_SUCCEEDED' || status === 'completed';
         }
         function isBatchFailed(status) {
             return status === 'JOB_STATE_FAILED' || status === 'BATCH_STATE_FAILED' ||
-                   status === 'STATE_FAILED';
+                   status === 'STATE_FAILED' || status === 'failed' || status === 'expired';
         }
         function isBatchCancelled(status) {
             return status === 'JOB_STATE_CANCELLED' || status === 'BATCH_STATE_CANCELLED' ||
-                   status === 'STATE_CANCELLED';
+                   status === 'STATE_CANCELLED' || status === 'cancelled';
+        }
+        function isBatchRunning(status) {
+            return String(status || '').includes('RUNNING') ||
+                   status === 'in_progress' || status === 'finalizing';
+        }
+        function getBatchProvider(job) {
+            if (job?.provider) return job.provider;
+            return String(job?.batchName || '').startsWith('batch_') ? 'openai' : 'gemini';
+        }
+        function batchNeedsPolling(job) {
+            const hasUnprocessedOutput = !job.resultsProcessed && (
+                isBatchDone(job.status) || (isBatchFailed(job.status) && job.outputFileId)
+            );
+            return isBatchActive(job.status) || hasUnprocessedOutput;
         }
 
         function extractModelName(endpointUrl) {
@@ -9775,43 +9791,184 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
+        async function readOpenAIError(response, fallback) {
+            const data = await response.json().catch(() => null);
+            return data?.error?.message || data?.message || `${fallback}: ${response.status}`;
+        }
+
+        async function uploadOpenAIFile(blob, filename, purpose, apiKey) {
+            const formData = new FormData();
+            formData.append('purpose', purpose);
+            formData.append('file', blob, filename);
+
+            const response = await fetch('https://api.openai.com/v1/files', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+                body: formData
+            });
+            if (!response.ok) {
+                throw new Error(await readOpenAIError(response, 'OpenAI file upload failed'));
+            }
+            return response.json();
+        }
+
+        async function deleteOpenAIFileQuietly(fileId, apiKey) {
+            if (!fileId) return;
+            try {
+                await fetch(`https://api.openai.com/v1/files/${encodeURIComponent(fileId)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+            } catch (error) {
+                console.warn(`Could not clean up temporary OpenAI file ${fileId}:`, error);
+            }
+        }
+
+        function openAIImageFilename(index, mimeType) {
+            const subtype = String(mimeType || 'image/png').split('/')[1] || 'png';
+            const extension = subtype.replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '') || 'png';
+            return `knappshot-input-${index + 1}.${extension}`;
+        }
+
         async function submitOpenAIBatch(imagesToProcess, prompt) {
             const apiKey = $('openaiApiKey').value.trim();
             if (!apiKey) { showStatus('Enter your OpenAI API key', 'error'); return; }
 
-            submitBtn.disabled = true;
             const fullPrompt = buildFullPrompt(prompt, 'openai');
             const allInputImages = [...imagesToProcess, ...state.referenceImages.filter(r => r.base64)];
             const userLabel = $('batchLabelInput')?.value?.trim();
             const fileLabel = $('fileLabelInput')?.value?.trim() || null;
+            const displayName = userLabel || `KnappShot batch - ${new Date().toLocaleString()}`;
+            const modelId = apiEndpointInput.value;
+            const size = getOpenAISize(state.selectedAspectRatio, state.selectedResolution);
+            const quality = state.selectedQuality || 'high';
+            const requestCount = state.selectedGenerationCount || 1;
+            const endpoint = allInputImages.length > 0 ? '/v1/images/edits' : '/v1/images/generations';
+            const uploadedImageFileIds = [];
+            let batchInputFileId = null;
 
-            showStatus('Processing OpenAI batch...', 'loading');
-            const allResults = [];
-            let totalCost = 0;
+            if (!size) {
+                showStatus('This aspect ratio is not supported by OpenAI (max 3:1)', 'error');
+                return;
+            }
+
+            submitBtn.disabled = true;
 
             try {
-                for (let gen = 0; gen < state.selectedGenerationCount; gen++) {
-                    if (state.selectedGenerationCount > 1) {
-                        showStatus(`OpenAI batch: generating ${gen + 1}/${state.selectedGenerationCount}...`, 'loading');
-                    }
-                    const result = await openAIGenerate(fullPrompt, allInputImages);
-                    allResults.push(...result.images);
-                    if (result.cost) totalCost += result.cost.total;
+                const imageReferences = [];
+                for (let i = 0; i < allInputImages.length; i++) {
+                    showStatus(`Uploading OpenAI input image ${i + 1}/${allInputImages.length}...`, 'loading');
+                    const image = allInputImages[i];
+                    const imageFile = await uploadOpenAIFile(
+                        base64ToBlob(image.base64, image.mimeType),
+                        openAIImageFilename(i, image.mimeType),
+                        'vision',
+                        apiKey
+                    );
+                    uploadedImageFileIds.push(imageFile.id);
+                    imageReferences.push({ file_id: imageFile.id });
                 }
 
-                const label = userLabel || null;
-                for (const img of allResults) {
-                    await addToReview(img.src, prompt, null, label, fileLabel);
+                const requestBody = {
+                    model: modelId,
+                    prompt: fullPrompt,
+                    n: 1,
+                    size: size,
+                    quality: quality,
+                    output_format: 'png'
+                };
+                if (endpoint === '/v1/images/edits') {
+                    requestBody.images = imageReferences;
                 }
 
-                const costStr = totalCost > 0 ? ` — est. cost: $${totalCost.toFixed(4)}` : '';
-                showStatus(`OpenAI batch complete! ${allResults.length} image${allResults.length !== 1 ? 's' : ''} added to review${costStr}`, 'success');
-                pulseReviewBadge();
+                const jsonl = Array.from({ length: requestCount }, (_, index) => JSON.stringify({
+                    custom_id: `request-${index + 1}`,
+                    method: 'POST',
+                    url: endpoint,
+                    body: requestBody
+                })).join('\n') + '\n';
+                const jsonlBlob = new Blob([jsonl], { type: 'application/jsonl' });
+                if (jsonlBlob.size > 200 * 1024 * 1024) {
+                    throw new Error('OpenAI batch input exceeds the 200 MB limit');
+                }
+
+                showStatus('Uploading OpenAI batch file...', 'loading');
+                const inputFile = await uploadOpenAIFile(
+                    jsonlBlob,
+                    `knappshot-batch-${Date.now()}.jsonl`,
+                    'batch',
+                    apiKey
+                );
+                batchInputFileId = inputFile.id;
+
+                showStatus('Submitting OpenAI batch job...', 'loading');
+                const response = await fetch('https://api.openai.com/v1/batches', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        input_file_id: inputFile.id,
+                        endpoint: endpoint,
+                        completion_window: '24h',
+                        metadata: {
+                            app: 'knappshot',
+                            batch_description: displayName.slice(0, 512)
+                        }
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(await readOpenAIError(response, 'OpenAI batch submission failed'));
+                }
+
+                const batchData = await response.json();
+                const job = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    provider: 'openai',
+                    batchName: batchData.id,
+                    inputFileId: inputFile.id,
+                    inputImageFileIds: uploadedImageFileIds,
+                    endpoint: endpoint,
+                    displayName: displayName,
+                    status: batchData.status || 'validating',
+                    createdAt: batchData.created_at ? batchData.created_at * 1000 : Date.now(),
+                    completedAt: null,
+                    requestCount: requestCount,
+                    requestCounts: batchData.request_counts || null,
+                    resultsProcessed: false,
+                    prompt: prompt,
+                    model: modelId,
+                    aspectRatio: state.selectedAspectRatio,
+                    resolution: state.selectedResolution,
+                    quality: quality,
+                    error: null,
+                    fileLabel: fileLabel
+                };
+
+                state.batchJobs.unshift(job);
+                saveBatchJobs();
                 updateReviewUI();
+                startBatchPolling();
+
+                showStatus(`OpenAI batch submitted! ${requestCount} image${requestCount !== 1 ? 's' : ''} queued at 50% lower cost.`, 'success');
+                addNotification(
+                    'batch_submitted',
+                    'OpenAI Batch Submitted',
+                    `${requestCount} image${requestCount !== 1 ? 's' : ''} queued for async processing. Results within 24 hours.`,
+                    'View Status'
+                );
+                pulseReviewBadge();
                 if ($('batchLabelInput')) $('batchLabelInput').value = '';
             } catch (error) {
-                console.error('OpenAI batch error:', error);
-                showStatus(`OpenAI batch failed: ${error.message}`, 'error');
+                console.error('OpenAI batch submission error:', error);
+                showStatus(`OpenAI batch submission failed: ${error.message}`, 'error');
+
+                // These uploads are temporary and are only needed by a successfully-created batch.
+                if (batchInputFileId) await deleteOpenAIFileQuietly(batchInputFileId, apiKey);
+                for (const fileId of uploadedImageFileIds) {
+                    await deleteOpenAIFileQuietly(fileId, apiKey);
+                }
             } finally {
                 submitBtn.disabled = false;
             }
@@ -9820,7 +9977,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
         function startBatchPolling() {
             if (state.batchPollInterval) return;
 
-            const hasActiveJobs = state.batchJobs.some(j => isBatchActive(j.status));
+            const hasActiveJobs = state.batchJobs.some(batchNeedsPolling);
             if (!hasActiveJobs) return;
 
             pollBatchJobs();
@@ -9834,11 +9991,80 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
-        async function pollBatchJobs() {
-            const apiKey = apiKeyInput.value.trim();
-            if (!apiKey) return;
+        function getOpenAIBatchError(batchData) {
+            const errors = batchData?.errors?.data || batchData?.errors || [];
+            if (Array.isArray(errors) && errors.length > 0) {
+                return errors.map(error => error.message || error.code).filter(Boolean).join('; ');
+            }
+            return batchData?.error?.message || null;
+        }
 
-            const activeJobs = state.batchJobs.filter(j => isBatchActive(j.status));
+        async function pollOpenAIBatchJob(job, apiKey, elapsedMin) {
+            const response = await fetch(
+                `https://api.openai.com/v1/batches/${encodeURIComponent(job.batchName)}`,
+                { headers: { 'Authorization': `Bearer ${apiKey}` } }
+            );
+            if (!response.ok) {
+                console.error(`OpenAI batch poll error for ${job.batchName}: ${response.status}`);
+                return;
+            }
+
+            const batchData = await response.json();
+            const newStatus = batchData.status || job.status;
+            const statusChanged = newStatus !== job.status;
+
+            console.log(
+                `OpenAI batch ${job.batchName} [${elapsedMin}m]: status=${newStatus}, ` +
+                `completed=${batchData.request_counts?.completed || 0}/${batchData.request_counts?.total || job.requestCount}`
+            );
+
+            job.status = newStatus;
+            job.requestCounts = batchData.request_counts || job.requestCounts || null;
+            job.outputFileId = batchData.output_file_id || job.outputFileId || null;
+            job.errorFileId = batchData.error_file_id || job.errorFileId || null;
+
+            const hasResultsToImport = (
+                isBatchDone(newStatus) ||
+                (newStatus === 'expired' && job.outputFileId)
+            ) && !job.resultsProcessed;
+
+            if (hasResultsToImport) {
+                job.completedAt = (batchData.completed_at || batchData.expired_at)
+                    ? (batchData.completed_at || batchData.expired_at) * 1000
+                    : Date.now();
+                saveBatchJobs();
+                updateReviewUI();
+                await extractOpenAIBatchResults(job, batchData, apiKey);
+                updateReviewUI();
+                return;
+            }
+
+            if (isBatchFailed(newStatus)) {
+                job.completedAt = (batchData.failed_at || batchData.expired_at)
+                    ? (batchData.failed_at || batchData.expired_at) * 1000
+                    : Date.now();
+                job.error = getOpenAIBatchError(batchData) ||
+                    (newStatus === 'expired' ? 'Batch expired before all requests completed' : 'OpenAI batch failed');
+                job.resultsProcessed = !job.outputFileId;
+                if (statusChanged) {
+                    addNotification('error', 'OpenAI Batch Failed', `"${job.displayName}" failed: ${job.error}`, null);
+                }
+            } else if (isBatchCancelled(newStatus)) {
+                job.completedAt = batchData.cancelled_at ? batchData.cancelled_at * 1000 : Date.now();
+                job.resultsProcessed = true;
+            }
+
+            if (statusChanged || isBatchFailed(newStatus) || isBatchCancelled(newStatus)) {
+                saveBatchJobs();
+                updateReviewUI();
+            }
+            if ((isBatchFailed(newStatus) || isBatchCancelled(newStatus)) && job.resultsProcessed) {
+                await cleanupOpenAIBatchInputImages(job, apiKey);
+            }
+        }
+
+        async function pollBatchJobs() {
+            const activeJobs = state.batchJobs.filter(batchNeedsPolling);
 
             if (activeJobs.length === 0) {
                 stopBatchPolling();
@@ -9847,6 +10073,21 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
             for (const job of activeJobs) {
                 const elapsedMin = Math.round((Date.now() - job.createdAt) / 60000);
+                const provider = getBatchProvider(job);
+
+                if (provider === 'openai') {
+                    const openAIKey = $('openaiApiKey').value.trim();
+                    if (!openAIKey) continue;
+                    try {
+                        await pollOpenAIBatchJob(job, openAIKey, elapsedMin);
+                    } catch (error) {
+                        console.error(`Error polling OpenAI batch ${job.batchName}:`, error);
+                    }
+                    continue;
+                }
+
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey) continue;
 
                 // Auto-timeout jobs older than 25 hours
                 if (Date.now() - job.createdAt > 25 * 60 * 60 * 1000) {
@@ -9901,7 +10142,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         job.status = isBatchDone(newStatus) ? newStatus : 'JOB_STATE_SUCCEEDED';
                         job.completedAt = Date.now();
                         console.log(`Batch job ${job.id} completed, extracting results...`);
-                        await extractBatchResults(job, opData);
+                        await extractGeminiBatchResults(job, opData);
                         saveBatchJobs();
                         updateReviewUI();
                     } else if (statusChanged) {
@@ -9924,7 +10165,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
-        async function extractBatchResults(job, opData) {
+        async function extractGeminiBatchResults(job, opData) {
             let successCount = 0;
             let failCount = 0;
             const apiKey = apiKeyInput.value.trim();
@@ -10034,29 +10275,200 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             }
         }
 
+        async function fetchOpenAIFileContent(fileId, apiKey) {
+            const response = await fetch(
+                `https://api.openai.com/v1/files/${encodeURIComponent(fileId)}/content`,
+                { headers: { 'Authorization': `Bearer ${apiKey}` } }
+            );
+            if (!response.ok) {
+                throw new Error(await readOpenAIError(response, 'Could not download OpenAI batch results'));
+            }
+            return response.text();
+        }
+
+        async function cleanupOpenAIBatchInputImages(job, apiKey) {
+            if (job.inputImageFilesCleaned || !job.inputImageFileIds?.length) return;
+            for (const fileId of job.inputImageFileIds) {
+                await deleteOpenAIFileQuietly(fileId, apiKey);
+            }
+            job.inputImageFilesCleaned = true;
+            job.inputImageFileIds = [];
+            saveBatchJobs();
+        }
+
+        async function extractOpenAIBatchResults(job, batchData, apiKey) {
+            let successCount = 0;
+            let failCount = 0;
+            let totalCost = 0;
+            let firstError = null;
+            const batchLabel = job.displayName && !job.displayName.startsWith('KnappShot batch - ')
+                ? job.displayName : null;
+            const fileLabel = job.fileLabel || null;
+            const outputFileId = batchData.output_file_id || job.outputFileId;
+            const errorFileId = batchData.error_file_id || job.errorFileId;
+
+            if (outputFileId) {
+                const outputText = await fetchOpenAIFileContent(outputFileId, apiKey);
+                const lines = outputText.split('\n').filter(line => line.trim());
+
+                for (const line of lines) {
+                    try {
+                        const result = JSON.parse(line);
+                        const response = result.response;
+                        const body = response?.body;
+                        if (result.error || !response || response.status_code < 200 || response.status_code >= 300) {
+                            failCount++;
+                            firstError = firstError || result.error?.message || body?.error?.message ||
+                                `Request failed with status ${response?.status_code || 'unknown'}`;
+                            continue;
+                        }
+
+                        let imagesInResponse = 0;
+                        for (const image of (body?.data || [])) {
+                            if (!image.b64_json) continue;
+                            await addToReview(
+                                `data:image/png;base64,${image.b64_json}`,
+                                job.prompt,
+                                null,
+                                batchLabel,
+                                fileLabel
+                            );
+                            imagesInResponse++;
+                            successCount++;
+                        }
+                        if (imagesInResponse === 0) {
+                            failCount++;
+                            firstError = firstError || 'OpenAI returned no image for one batch request';
+                        }
+
+                        const cost = estimateOpenAICost(body?.usage);
+                        if (cost) totalCost += cost.total * 0.5;
+                    } catch (error) {
+                        console.error('Error parsing OpenAI batch result line:', error);
+                        failCount++;
+                        firstError = firstError || error.message;
+                    }
+                }
+            }
+
+            if (errorFileId) {
+                try {
+                    const errorText = await fetchOpenAIFileContent(errorFileId, apiKey);
+                    const errorLines = errorText.split('\n').filter(line => line.trim());
+                    failCount = Math.max(failCount, errorLines.length);
+                    for (const line of errorLines) {
+                        try {
+                            const result = JSON.parse(line);
+                            firstError = firstError || result.error?.message ||
+                                result.response?.body?.error?.message || null;
+                        } catch {
+                            // The failed-request count is still useful if a line is malformed.
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not download OpenAI batch error file:', error);
+                }
+            }
+
+            failCount = Math.max(failCount, job.requestCounts?.failed || 0);
+            if (!outputFileId && failCount === 0) {
+                failCount = job.requestCount || 0;
+                firstError = firstError || 'OpenAI batch completed without an output file';
+            }
+
+            job.resultsProcessed = true;
+            job.successCount = successCount;
+            job.failCount = failCount;
+            job.estimatedCost = totalCost;
+            job.error = failCount > 0
+                ? `${failCount} request${failCount !== 1 ? 's' : ''} failed${firstError ? `: ${firstError}` : ''}`
+                : null;
+            saveBatchJobs();
+            await cleanupOpenAIBatchInputImages(job, apiKey);
+
+            if (successCount > 0) {
+                const costStr = totalCost > 0 ? ` — est. cost: $${totalCost.toFixed(4)}` : '';
+                const partialStr = failCount > 0 ? ` (${failCount} failed)` : '';
+                addNotification(
+                    'batch_complete',
+                    'OpenAI Batch Complete',
+                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${partialStr}${costStr}`,
+                    'View in Review'
+                );
+                pulseReviewBadge();
+                showToast(
+                    'OpenAI Batch Complete!',
+                    `${successCount} image${successCount !== 1 ? 's' : ''} ready for review${partialStr}${costStr}`,
+                    'View in Review'
+                );
+            } else {
+                const message = job.error || 'No images were returned';
+                addNotification('error', 'OpenAI Batch Failed', `"${job.displayName}": ${message}`, null);
+                showStatus(`OpenAI batch completed without images: ${message}`, 'error');
+            }
+        }
+
         async function cancelBatchJob(jobId) {
             const job = state.batchJobs.find(j => j.id === jobId);
             if (!job || !isBatchActive(job.status)) return;
 
-            const apiKey = apiKeyInput.value.trim();
+            const provider = getBatchProvider(job);
+            const apiKey = provider === 'openai'
+                ? $('openaiApiKey').value.trim()
+                : apiKeyInput.value.trim();
+            if (!apiKey) {
+                showStatus(`Enter your ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API key first`, 'error');
+                return;
+            }
+
             try {
-                const response = await fetch(
-                    `${batchPollUrl(`${job.batchName}:cancel`)}?key=${encodeURIComponent(apiKey)}`,
-                    { method: 'POST' }
-                );
+                const response = provider === 'openai'
+                    ? await fetch(
+                        `https://api.openai.com/v1/batches/${encodeURIComponent(job.batchName)}/cancel`,
+                        {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${apiKey}` }
+                        }
+                    )
+                    : await fetch(
+                        `${batchPollUrl(`${job.batchName}:cancel`)}?key=${encodeURIComponent(apiKey)}`,
+                        { method: 'POST' }
+                    );
 
                 if (response.ok) {
-                    job.status = 'JOB_STATE_CANCELLED';
-                    job.completedAt = Date.now();
+                    if (provider === 'openai') {
+                        const batchData = await response.json();
+                        job.status = batchData.status || 'cancelling';
+                        job.requestCounts = batchData.request_counts || job.requestCounts || null;
+                        if (isBatchCancelled(job.status)) {
+                            job.completedAt = batchData.cancelled_at
+                                ? batchData.cancelled_at * 1000
+                                : Date.now();
+                            job.resultsProcessed = true;
+                        }
+                    } else {
+                        job.status = 'JOB_STATE_CANCELLED';
+                        job.completedAt = Date.now();
+                    }
                     saveBatchJobs();
                     updateReviewUI();
-                    showStatus('Batch job cancelled', 'success');
+                    startBatchPolling();
+                    showStatus(
+                        provider === 'openai' ? 'OpenAI batch cancellation requested' : 'Batch job cancelled',
+                        'success'
+                    );
+                    if (provider === 'openai' && isBatchCancelled(job.status)) {
+                        await cleanupOpenAIBatchInputImages(job, apiKey);
+                    }
                 } else {
-                    showStatus('Failed to cancel batch job', 'error');
+                    const message = provider === 'openai'
+                        ? await readOpenAIError(response, 'Failed to cancel OpenAI batch')
+                        : 'Failed to cancel batch job';
+                    showStatus(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cancelling batch:', error);
-                showStatus('Failed to cancel batch job', 'error');
+                showStatus(`Failed to cancel batch job: ${error.message}`, 'error');
             }
         }
 
@@ -10064,22 +10476,19 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
             const job = state.batchJobs.find(j => j.id === jobId);
             if (!job) return;
 
-            const apiKey = apiKeyInput.value.trim();
+            const provider = getBatchProvider(job);
+            const apiKey = provider === 'openai'
+                ? $('openaiApiKey').value.trim()
+                : apiKeyInput.value.trim();
             if (!apiKey) {
-                showStatus('Enter API key first', 'error');
+                showStatus(`Enter your ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API key first`, 'error');
                 return;
             }
 
             // Cancel the job first if it's still active
             if (isBatchActive(job.status)) {
                 try {
-                    await fetch(
-                        `${batchPollUrl(`${job.batchName}:cancel`)}?key=${encodeURIComponent(apiKey)}`,
-                        { method: 'POST' }
-                    );
-                    job.status = 'JOB_STATE_CANCELLED';
-                    job.completedAt = Date.now();
-                    saveBatchJobs();
+                    await cancelBatchJob(jobId);
                 } catch (e) {
                     console.error('Error cancelling before resubmit:', e);
                 }
@@ -10107,6 +10516,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         break;
                     }
                 }
+                updateProviderUI();
             }
 
             // Set generation count and update button UI
@@ -10116,6 +10526,15 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 genButtons.querySelectorAll('.option-btn').forEach(btn => {
                     btn.classList.toggle('active', parseInt(btn.dataset.value) === state.selectedGenerationCount);
                 });
+            }
+            if (job.aspectRatio) {
+                setOptionButton('aspectRatioButtons', job.aspectRatio, 'selectedAspectRatio');
+            }
+            if (job.resolution) {
+                setOptionButton('resolutionButtons', job.resolution, 'selectedResolution');
+            }
+            if (job.quality) {
+                setOptionButton('qualityButtons', job.quality, 'selectedQuality');
             }
 
             // Switch to batch mode
@@ -10701,7 +11120,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
 
         function updateReviewUI() {
             const count = state.reviewItems.length;
-            const activeBatchCount = state.batchJobs.filter(j => isBatchActive(j.status)).length;
+            const activeBatchCount = state.batchJobs.filter(batchNeedsPolling).length;
 
             // Update badge (include active batch jobs in count)
             const badgeCount = count + activeBatchCount;
@@ -10809,30 +11228,37 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 const elapsed = Date.now() - job.createdAt;
 
                 let statusClass, statusLabel;
-                switch (job.status) {
-                    default: {
-                        if (isBatchActive(job.status)) {
-                            const isRunning = job.status.includes('RUNNING');
-                            statusClass = isRunning ? 'processing' : 'pending';
-                            statusLabel = isRunning ? 'Processing' : 'Pending';
-                        } else if (isBatchDone(job.status)) {
-                            statusClass = 'completed'; statusLabel = 'Completed';
-                        } else if (isBatchFailed(job.status)) {
-                            statusClass = 'failed'; statusLabel = 'Failed';
-                        } else if (isBatchCancelled(job.status)) {
-                            statusClass = 'cancelled'; statusLabel = 'Cancelled';
-                        } else {
-                            statusClass = 'pending'; statusLabel = job.status;
-                        }
-                    }
+                const isImporting = !job.resultsProcessed && (
+                    isBatchDone(job.status) || (isBatchFailed(job.status) && job.outputFileId)
+                );
+                if (isImporting) {
+                    statusClass = 'processing'; statusLabel = 'Importing results';
+                } else if (isBatchActive(job.status)) {
+                    statusClass = isBatchRunning(job.status) ? 'processing' : 'pending';
+                    if (job.status === 'validating') statusLabel = 'Validating';
+                    else if (job.status === 'finalizing') statusLabel = 'Finalizing';
+                    else if (job.status === 'cancelling') statusLabel = 'Cancelling';
+                    else statusLabel = isBatchRunning(job.status) ? 'Processing' : 'Pending';
+                } else if (isBatchDone(job.status)) {
+                    statusClass = 'completed'; statusLabel = 'Completed';
+                } else if (isBatchFailed(job.status)) {
+                    statusClass = 'failed'; statusLabel = job.status === 'expired' ? 'Expired' : 'Failed';
+                } else if (isBatchCancelled(job.status)) {
+                    statusClass = 'cancelled'; statusLabel = 'Cancelled';
+                } else {
+                    statusClass = 'pending'; statusLabel = job.status || 'Pending';
                 }
 
                 const isActive = isBatchActive(job.status);
                 const isDone = isBatchDone(job.status);
+                const isPolling = batchNeedsPolling(job);
+                const showSpinner = isBatchRunning(job.status) || isImporting;
+                const canCancel = isActive && job.status !== 'cancelling';
+                const providerLabel = getBatchProvider(job) === 'openai' ? 'OpenAI' : 'Gemini';
 
-                // ETA: Google guarantees results within 24h, most complete much sooner
+                // Both providers use a 24-hour batch completion window.
                 let etaHtml = '';
-                if (isActive) {
+                if (isPolling) {
                     const elapsedHours = elapsed / (1000 * 60 * 60);
                     if (elapsedHours < 1) {
                         etaHtml = `<span class="batch-job-eta">Submitted ${formatElapsedTime(elapsed)} - typically completes within a few hours</span>`;
@@ -10846,7 +11272,7 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                 let costHtml = '';
                 if (isDone && job.estimatedCost > 0) {
                     costHtml = `<span style="color:var(--success-color, #4ade80); font-weight:500">est. $${job.estimatedCost.toFixed(4)}</span>`;
-                } else if (isDone && !job.estimatedCost) {
+                } else if (isDone && !job.estimatedCost && getBatchProvider(job) !== 'openai') {
                     // Calculate cost retroactively for older jobs that don't have it stored
                     const retroCost = estimateBatchCost(job, job.successCount || job.requestCount);
                     if (retroCost > 0) {
@@ -10854,16 +11280,23 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                     }
                 }
 
+                const completedRequests = job.requestCounts?.completed;
+                const totalRequests = job.requestCounts?.total || job.requestCount;
+                const progressHtml = Number.isFinite(completedRequests) && totalRequests
+                    ? `<span>${completedRequests}/${totalRequests} processed</span>`
+                    : `<span>${job.requestCount} image${job.requestCount !== 1 ? 's' : ''}</span>`;
+
                 return `
                     <div class="batch-job-card ${statusClass}">
                         <div class="batch-job-info">
                             <div class="batch-job-title">${job.displayName}</div>
                             <div class="batch-job-meta">
                                 <span class="batch-job-status ${statusClass}">
-                                    ${job.status.includes('RUNNING') ? '<span class="queue-status-spinner"></span>' : ''}
+                                    ${showSpinner ? '<span class="queue-status-spinner"></span>' : ''}
                                     ${statusLabel}
                                 </span>
-                                <span>${job.requestCount} image${job.requestCount !== 1 ? 's' : ''}</span>
+                                <span>${providerLabel}</span>
+                                ${progressHtml}
                                 <span>${dateStr}</span>
                                 ${job.model ? `<span style="opacity:0.7">${job.model.replace('models/', '').replace('gemini-', '').replace('-preview', '')}</span>` : ''}
                                 ${costHtml}
@@ -10874,9 +11307,9 @@ Important: The Tech Specs section MUST use this exact aspect ratio.`;
                         </div>
                         <div class="batch-job-actions">
                             ${isActive ? `<button class="review-btn" onclick="resubmitBatchJob('${job.id}')" title="Cancel and resubmit">Resubmit</button>` : ''}
-                            ${isActive ? `<button class="review-btn danger" onclick="cancelBatchJob('${job.id}')">Cancel</button>` : ''}
-                            ${!isActive && (isBatchFailed(job.status) || isBatchCancelled(job.status)) ? `<button class="review-btn" onclick="resubmitBatchJob('${job.id}')" title="Resubmit this job">Resubmit</button>` : ''}
-                            ${!isActive ? `<button class="review-btn" onclick="dismissBatchJob('${job.id}')">Dismiss</button>` : ''}
+                            ${canCancel ? `<button class="review-btn danger" onclick="cancelBatchJob('${job.id}')">Cancel</button>` : ''}
+                            ${!isPolling && (isBatchFailed(job.status) || isBatchCancelled(job.status)) ? `<button class="review-btn" onclick="resubmitBatchJob('${job.id}')" title="Resubmit this job">Resubmit</button>` : ''}
+                            ${!isPolling ? `<button class="review-btn" onclick="dismissBatchJob('${job.id}')">Dismiss</button>` : ''}
                         </div>
                     </div>
                 `;
